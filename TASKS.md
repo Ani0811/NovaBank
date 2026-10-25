@@ -5,12 +5,12 @@
 | Phase | Priority | Total Tasks | Planned | In Progress | Blocked | Done |
 |---|---|---|---|---|---|---|
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 1 | 0 | 0 | 3 |
-| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 10 | 0 | 0 | 1 |
+| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 9 | 0 | 0 | 2 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 9 | 0 | 0 | 0 |
 | **Phase 3: Statements, Audit & Operations** | P3 | 8 | 8 | 0 | 0 | 0 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **39** | **0** | **0** | **4** |
+| **Total** | | **43** | **38** | **0** | **0** | **5** |
 
 ---
 
@@ -124,8 +124,8 @@
   - Active status invariants: Deactivated accounts reject all deposits, withdrawals, and transfers.
   - Non-negative balance invariant: `balance >= Money.zero()` at all times.
 - **Required Tests**: Unit tests for age validation, phone regex, name formatting, and state transitions (active -> closed).
-- **Status**: Planned
-- **Notes**: Replaces legacy recursive input loops with deterministic domain validation.
+- **Status**: Done
+- **Notes**: Implemented `Account` entity, `Transaction` entity, `AccountNumber` 12-digit value object, and `TransactionType` / `TransactionDirection` enums. Replaces legacy console recursive input loops with deterministic domain validation and overdraft prevention invariants. 14/14 unit tests passing (56/56 total suite tests passing with 90% overall coverage).
 
 ---
 

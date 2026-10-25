@@ -258,7 +258,7 @@ The following capabilities are explicitly deferred or designated as non-goals to
 
 ## 6. Current Project Status & Immediate Next Milestone
 
-- **Current Status**: **Phase 1 (P1) - In Progress (Milestone P1-M1 Initiated)**
+- **Current Status**: **Phase 1 (P1) - In Progress (Milestone P1-M1 Complete)**
 - **Legacy Audit**: Completed. Critical vulnerabilities and schema defects documented.
-- **Project Structure**: Modern project repository initialized at `C:\Github\NovaBank` with active `.venv`, clean architecture package layout, secure Windows keyring configuration, safe database diagnostics, and exact `Money` decimal domain model.
-- **Immediate Next Task**: **`TASK-P1-02`** - Domain Entities & Account Validation Rules (`Account`, `AccountNumber`, `Transaction`, `TransactionType`).
+- **Project Structure**: Modern project repository initialized at `C:\Github\NovaBank` with active `.venv`, clean architecture package layout, secure Windows keyring configuration, safe database diagnostics, and complete core domain models (`Money`, `Account`, `Transaction`, `AccountNumber`).
+- **Immediate Next Task**: **`TASK-P1-03`** - Implement SQLAlchemy Declarative ORM & Table Schemas (`accounts`, `transactions`, `audit_events`).
