@@ -5,12 +5,12 @@
 | Phase | Priority | Total Tasks | Planned | In Progress | Blocked | Done |
 |---|---|---|---|---|---|---|
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 1 | 0 | 0 | 3 |
-| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 9 | 0 | 0 | 2 |
+| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 8 | 0 | 0 | 3 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 9 | 0 | 0 | 0 |
 | **Phase 3: Statements, Audit & Operations** | P3 | 8 | 8 | 0 | 0 | 0 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **38** | **0** | **0** | **5** |
+| **Total** | | **43** | **37** | **0** | **0** | **6** |
 
 ---
 
@@ -142,8 +142,8 @@
   - `audit_events`: `event_id` BIGINT AUTO_INCREMENT PRIMARY KEY, `event_type` VARCHAR(50) NOT NULL, `entity_id` VARCHAR(50) NOT NULL, `actor` VARCHAR(50) NOT NULL, `payload` JSON, `timestamp` DATETIME NOT NULL.
   - Indices on `transactions.account_number`, `transactions.created_at`, `accounts.holder_name`.
 - **Required Tests**: Schema verification tests using SQLite in-memory and MySQL container.
-- **Status**: Planned
-- **Notes**: Fixes legacy lack of primary key and transaction metadata on `BMS_ACCOUNTS`.
+- **Status**: Done
+- **Notes**: Implemented SQLAlchemy 2.0 declarative models (`AccountModel`, `TransactionModel`, `AuditEventModel`), session management (`session.py`), and bi-directional entity mappers. Fixes legacy unkeyed `BMS_ACCOUNTS` table with proper PKs, unique UUIDv4 transaction references, decimal fields, and check constraints. 6/6 tests passing with 100% model coverage (62/62 total suite tests passing with 91% overall coverage).
 
 ---
 
