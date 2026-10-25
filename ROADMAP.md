@@ -258,7 +258,7 @@ The following capabilities are explicitly deferred or designated as non-goals to
 
 ## 6. Current Project Status & Immediate Next Milestone
 
-- **Current Status**: **Phase 0 (P0) - In Progress (Milestone P0-M1 Complete)**
+- **Current Status**: **Phase 0 (P0) - Near Completion (Milestones P0-M1 & P0-M2 Verified)**
 - **Legacy Audit**: Completed. Critical vulnerabilities and schema defects documented.
-- **Project Structure**: Modern project repository initialized at `C:\Github\NovaBank` with active `.venv` and verified clean architecture package layout.
-- **Immediate Next Task**: **`TASK-P0-02`** - Establish Code Quality, Type Checking & Testing Infrastructure (or `TASK-P0-03` - Implement Secure Configuration & Credential Store).
+- **Project Structure**: Modern project repository initialized at `C:\Github\NovaBank` with active `.venv`, clean architecture package layout, secure Windows keyring configuration, and safe database diagnostics.
+- **Immediate Next Task**: **`TASK-P0-02`** - Establish Code Quality, Type Checking & Testing Infrastructure (or proceed to Phase 1: `TASK-P1-01` - Monetary Value Object & Precision Arithmetic).

@@ -4,13 +4,13 @@
 
 | Phase | Priority | Total Tasks | Planned | In Progress | Blocked | Done |
 |---|---|---|---|---|---|---|
-| **Phase 0: Baseline & Preservation** | P0 | 4 | 2 | 0 | 0 | 2 |
+| **Phase 0: Baseline & Preservation** | P0 | 4 | 1 | 0 | 0 | 3 |
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 11 | 0 | 0 | 0 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 9 | 0 | 0 | 0 |
 | **Phase 3: Statements, Audit & Operations** | P3 | 8 | 8 | 0 | 0 | 0 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **41** | **0** | **0** | **2** |
+| **Total** | | **43** | **40** | **0** | **0** | **3** |
 
 ---
 
@@ -83,8 +83,8 @@
   - Checks existence of `narDB.BMS_MASTER` and `narDB.BMS_ACCOUNTS` without issuing any `DROP`, `ALTER`, or `INSERT` statements.
   - Returns clear diagnostics if MySQL service is stopped or unreachable.
 - **Required Tests**: Mock tests for successful connection, connection refused, authentication failure, and read-only schema inspection.
-- **Status**: Planned
-- **Notes**: Addresses stopped `MySQL80` service discovered during environment probe.
+- **Status**: Done
+- **Notes**: Implemented `check_database_connectivity` and `DatabaseDiagnostics` with safe read-only inspection of MySQL version and legacy narDB tables via information_schema (zero DDL). Tested live on local stopped MySQL80 service and verified with 8 comprehensive unit tests (21/21 total tests passing).
 
 ---
 
