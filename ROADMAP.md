@@ -258,7 +258,7 @@ The following capabilities are explicitly deferred or designated as non-goals to
 
 ## 6. Current Project Status & Immediate Next Milestone
 
-- **Current Status**: **Phase 0 (P0) - Near Completion (Milestones P0-M1 & P0-M2 Verified)**
+- **Current Status**: **Phase 1 (P1) - In Progress (Milestone P1-M1 Initiated)**
 - **Legacy Audit**: Completed. Critical vulnerabilities and schema defects documented.
-- **Project Structure**: Modern project repository initialized at `C:\Github\NovaBank` with active `.venv`, clean architecture package layout, secure Windows keyring configuration, and safe database diagnostics.
-- **Immediate Next Task**: **`TASK-P0-02`** - Establish Code Quality, Type Checking & Testing Infrastructure (or proceed to Phase 1: `TASK-P1-01` - Monetary Value Object & Precision Arithmetic).
+- **Project Structure**: Modern project repository initialized at `C:\Github\NovaBank` with active `.venv`, clean architecture package layout, secure Windows keyring configuration, safe database diagnostics, and exact `Money` decimal domain model.
+- **Immediate Next Task**: **`TASK-P1-02`** - Domain Entities & Account Validation Rules (`Account`, `AccountNumber`, `Transaction`, `TransactionType`).

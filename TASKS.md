@@ -5,12 +5,12 @@
 | Phase | Priority | Total Tasks | Planned | In Progress | Blocked | Done |
 |---|---|---|---|---|---|---|
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 1 | 0 | 0 | 3 |
-| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 11 | 0 | 0 | 0 |
+| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 10 | 0 | 0 | 1 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 9 | 0 | 0 | 0 |
 | **Phase 3: Statements, Audit & Operations** | P3 | 8 | 8 | 0 | 0 | 0 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **40** | **0** | **0** | **3** |
+| **Total** | | **43** | **39** | **0** | **0** | **4** |
 
 ---
 
@@ -103,8 +103,8 @@
   - Supports addition, subtraction, multiplication with non-negative scalars, and exact comparison.
   - Disallows direct operations with float types (`TypeError`).
 - **Required Tests**: Extensive unit tests covering boundary values, precision preservation, division rounding, and type safety.
-- **Status**: Planned
-- **Notes**: Resolves legacy restriction where amounts were integer-only `bigint`.
+- **Status**: Done
+- **Notes**: Implemented immutable `Money` value object with exact decimal quantization (ROUND_HALF_UP to 2 decimal places), float rejection, currency safety, integer cents conversion, formatting, and domain exceptions. 21/21 unit tests passing with 98% code coverage (42/42 total suite tests passing).
 
 ---
 
