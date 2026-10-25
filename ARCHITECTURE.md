@@ -222,7 +222,7 @@ The AI subsystem integrates with a locally running instance of **LM Studio** pro
 ### 6.1 Credential & Secrets Management
 - The legacy practice of storing plaintext credentials in `BMS_MySQL_ConnectionString.csv` is completely abolished.
 - Application configuration uses `pydantic-settings` to securely ingest configuration from:
-  1. Operating system environment variables (`BMS_DB_HOST`, `BMS_DB_PORT`, `BMS_DB_USER`, `BMS_DB_PASSWORD`, `BMS_DB_NAME`).
+  1. Operating system environment variables (`NOVABANK_DB_HOST`, `NOVABANK_DB_PORT`, `NOVABANK_DB_USER`, `NOVABANK_DB_PASSWORD`, `NOVABANK_DB_NAME`).
   2. Windows Credential Manager via the `keyring` library for desktop password storage.
   3. Local `.env.local` configuration file, strictly excluded from version control via `.gitignore`.
 - Password strings are wrapped in Pydantic's `SecretStr` to prevent accidental logging or terminal leakage.

@@ -59,12 +59,12 @@ def test_database_url_and_safe_url():
 
 
 def test_environment_variable_override(monkeypatch):
-    """Verify settings pick up BMS_ prefixed environment variables."""
-    monkeypatch.setenv("BMS_DB_HOST", "db.internal.bank")
-    monkeypatch.setenv("BMS_DB_PORT", "3307")
-    monkeypatch.setenv("BMS_DB_USER", "teller_app")
-    monkeypatch.setenv("BMS_DB_NAME", "production_bms")
-    monkeypatch.setenv("BMS_AI_ENABLED", "false")
+    """Verify settings pick up NOVABANK_ prefixed environment variables."""
+    monkeypatch.setenv("NOVABANK_DB_HOST", "db.internal.bank")
+    monkeypatch.setenv("NOVABANK_DB_PORT", "3307")
+    monkeypatch.setenv("NOVABANK_DB_USER", "teller_app")
+    monkeypatch.setenv("NOVABANK_DB_NAME", "production_bms")
+    monkeypatch.setenv("NOVABANK_AI_ENABLED", "false")
 
     config = AppConfig()
     assert config.db_host == "db.internal.bank"

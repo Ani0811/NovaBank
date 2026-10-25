@@ -17,7 +17,7 @@ class AppConfig(BaseSettings):
     """Unified application settings loaded from environment variables and secure stores."""
 
     model_config = SettingsConfigDict(
-        env_prefix="BMS_",
+        env_prefix="NOVABANK_",
         env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         extra="ignore",

@@ -91,7 +91,7 @@ This document records the critical architectural and engineering decisions made 
 - **Status**: Accepted
 - **Context**: The legacy system stored database host, username, database name, and password in plaintext in `BMS_MySQL_ConnectionString.csv`. This is a critical security vulnerability.
 - **Decision**: Completely deprecate plaintext CSV files. Implement `novabank.infrastructure.config` using `pydantic-settings` to load configuration from:
-  1. Environment variables (`BMS_DB_HOST`, `BMS_DB_USER`, etc.).
+  1. Environment variables (`NOVABANK_DB_HOST`, `NOVABANK_DB_USER`, etc.).
   2. Windows Credential Manager via the Python `keyring` library for desktop password storage.
   3. Gitignored local configuration files (`.env.local`).
 - **Alternatives Considered**:
