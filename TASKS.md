@@ -5,12 +5,12 @@
 | Phase | Priority | Total Tasks | Planned | In Progress | Blocked | Done |
 |---|---|---|---|---|---|---|
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 1 | 0 | 0 | 3 |
-| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 8 | 0 | 0 | 3 |
+| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 7 | 0 | 0 | 4 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 9 | 0 | 0 | 0 |
 | **Phase 3: Statements, Audit & Operations** | P3 | 8 | 8 | 0 | 0 | 0 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **37** | **0** | **0** | **6** |
+| **Total** | | **43** | **36** | **0** | **0** | **7** |
 
 ---
 
@@ -161,8 +161,8 @@
   - Downgrade script cleanly reverts the migration.
   - Safe check prevents migration from executing if destructive drops are detected.
 - **Required Tests**: Test running `alembic upgrade head` followed by `alembic downgrade base` on a test database.
-- **Status**: Planned
-- **Notes**: Eliminates the catastrophic `DROP DATABASE` pattern found in `BMS_Tables.Py.310.py`.
+- **Status**: Done
+- **Notes**: Configured Alembic (`alembic.ini`, `migrations/env.py`, `migrations/script.py.mako`), initial schema revision (`001_initial_schema.py`), and programmatic migration runner (`migrator.py`). Verified clean upgrade/downgrade cycle and idempotent re-upgrade without data corruption. 2/2 migration tests passing with 97% coverage (64/64 total suite tests passing with 92% overall coverage).
 
 ---
 
