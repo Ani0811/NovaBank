@@ -1,7 +1,7 @@
 """Baseline workspace sanity and architectural boundary tests."""
-import os
+
 from pathlib import Path
-import pytest
+
 import novabank
 
 
@@ -23,13 +23,13 @@ def test_legacy_source_isolated_and_intact():
     """Verify legacy source directory is preserved and completely untouched."""
     legacy_dir = Path(r"C:\Github\BMS_CONSOLE-main\BMS_CONSOLE-main")
     assert legacy_dir.is_dir(), "Legacy directory must exist"
-    
+
     bms_script = legacy_dir / "BMS.Py310.py"
     tables_script = legacy_dir / "BMS_Tables.Py.310.py"
-    
+
     assert bms_script.is_file(), "Legacy BMS.Py310.py must be preserved"
     assert tables_script.is_file(), "Legacy BMS_Tables.Py.310.py must be preserved"
-    
+
     # Assert legacy files are non-empty and retain their expected byte lengths
     assert bms_script.stat().st_size == 42283
     assert tables_script.stat().st_size == 8927

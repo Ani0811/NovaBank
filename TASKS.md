@@ -4,13 +4,13 @@
 
 | Phase | Priority | Total Tasks | Planned | In Progress | Blocked | Done |
 |---|---|---|---|---|---|---|
-| **Phase 0: Baseline & Preservation** | P0 | 4 | 3 | 0 | 0 | 1 |
+| **Phase 0: Baseline & Preservation** | P0 | 4 | 2 | 0 | 0 | 2 |
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 11 | 0 | 0 | 0 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 9 | 0 | 0 | 0 |
 | **Phase 3: Statements, Audit & Operations** | P3 | 8 | 8 | 0 | 0 | 0 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **42** | **0** | **0** | **1** |
+| **Total** | | **43** | **41** | **0** | **0** | **2** |
 
 ---
 
@@ -65,8 +65,8 @@
   - Plaintext CSV files are rejected; if a user provides a legacy CSV, the system offers a one-way secure import into Windows Credential Manager and immediately prompts for CSV deletion.
   - Default database connection string connects securely to MySQL without hardcoded passwords.
 - **Required Tests**: Unit tests verifying environment loading, default overrides, and secret masking in string representations (`SecretStr`).
-- **Status**: Planned
-- **Notes**: Prevents credentials leak identified in legacy audit.
+- **Status**: Done
+- **Notes**: Implemented `AppConfig` with `pydantic-settings`, SecretStr password masking, Windows Credential Manager (`keyring`) storage/retrieval helpers, and secure one-way legacy CSV import/deletion. 9/9 config tests passing (13/13 total tests passing).
 
 ---
 
