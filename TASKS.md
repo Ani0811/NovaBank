@@ -198,7 +198,7 @@
   - Row locking: `get_by_number_for_update` issues `SELECT ... FOR UPDATE` within the active transaction.
   - 100% parameterized SQL; zero SQL injection vulnerability.
 - **Required Tests**: Repository unit tests and integration tests verifying query generation and parameter binding.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Replaces raw SQL string concatenation in `getData()` and `getInsertUpdateSQL()`.
 
 ---

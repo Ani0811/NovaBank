@@ -212,6 +212,14 @@ class Account:
         self.version += 1
         self.updated_at = datetime.now(timezone.utc)
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Account):
+            return False
+        return self.account_number == other.account_number
+
+    def __hash__(self) -> int:
+        return hash(self.account_number)
+
     def __repr__(self) -> str:
         return (
             f"Account(no='{self.account_number.value}', holder='{self.holder_name}', "

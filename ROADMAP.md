@@ -261,4 +261,4 @@ The following capabilities are explicitly deferred or designated as non-goals to
 - **Current Status**: **Phase 1 (P1) - In Progress (Milestone P1-M2 Progressing)**
 - **Legacy Audit**: Completed. Critical vulnerabilities and schema defects documented.
 - **Project Structure**: Modern project repository initialized at `C:\Github\NovaBank` with active `.venv`, clean architecture package layout, secure Windows keyring configuration, safe database diagnostics, complete domain models, SQLAlchemy 2.0 ORM models, and verified Alembic schema migration engine.
-- **Immediate Next Task**: **`TASK-P1-05`** - Implement Safe Non-Destructive Legacy Data Importer (ETL) (or `TASK-P1-06` - Implement AccountRepository with Parameterized Queries).
+- **Immediate Next Task**: **TASK-P1-07** - Implement TransactionRepository & Ledger Recording (or TASK-P1-05 - Safe Non-Destructive Legacy Data Importer ETL).

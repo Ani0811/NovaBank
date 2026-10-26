@@ -97,6 +97,14 @@ class Transaction:
     def created_by(self) -> str:
         return self._created_by
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Transaction):
+            return False
+        return self._transaction_ref == other._transaction_ref
+
+    def __hash__(self) -> int:
+        return hash(self._transaction_ref)
+
     def __repr__(self) -> str:
         return (
             f"Transaction(ref='{self._transaction_ref}', type={self._transaction_type.value}, "
