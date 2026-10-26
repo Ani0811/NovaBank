@@ -216,7 +216,7 @@
   - Transactions are strictly append-only; update and delete operations are prohibited.
   - Duplicate `transaction_ref` raises `DuplicateTransactionRefError` (idempotency support).
 - **Required Tests**: Unit tests verifying append-only enforcement and query filtering by date range.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Provides complete ledger history missing in legacy implementation.
 
 ---
