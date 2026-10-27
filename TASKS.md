@@ -235,7 +235,7 @@
   - **Rollback**: On any exception or database failure, entire transaction rolls back; no balance change or orphan transaction record persists.
   - **Concurrency**: Multiple concurrent deposits on the same account serialize cleanly; final balance equals initial balance plus sum of all deposits.
 - **Required Tests**: Success path, inactive account rejection, zero amount rejection, simulated DB failure rollback, multi-threaded concurrent deposits.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Fixes legacy lack of transaction boundary.
 
 ---
