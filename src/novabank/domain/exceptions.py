@@ -57,3 +57,12 @@ class InvalidAmountError(DomainError):
 
 class DuplicateTransactionRefError(DomainError):
     """Raised when an idempotency violation occurs with a duplicate transaction reference."""
+
+
+class SelfTransferError(DomainError):
+    """Raised when an account-to-account transfer is attempted with identical source and destination."""
+
+    def __init__(self, account_number: str) -> None:
+        msg = f"Cannot transfer funds to the same account: {account_number}."
+        super().__init__(msg)
+        self.account_number = account_number

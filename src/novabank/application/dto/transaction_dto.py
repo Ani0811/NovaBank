@@ -68,3 +68,27 @@ class WithdrawalRequestDTO:
     description: str = "Cash Withdrawal"
     reference: Optional[str] = None
     actor: str = "system"
+
+
+@dataclass(frozen=True)
+class TransferRequestDTO:
+    """Input parameters for initiating an account-to-account transfer workflow."""
+
+    source_account: str
+    destination_account: str
+    amount: Decimal
+    description: str = "Account Transfer"
+    correlation_id: Optional[str] = None
+    actor: str = "system"
+
+
+@dataclass(frozen=True)
+class TransferResultDTO:
+    """Result returned after a successful account-to-account transfer."""
+
+    correlation_id: str
+    source_transaction: TransactionDTO
+    destination_transaction: TransactionDTO
+    amount: Decimal
+    currency: str
+    timestamp: datetime

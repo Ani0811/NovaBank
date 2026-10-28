@@ -271,7 +271,7 @@
   - **Rollback**: If destination credit fails, source debit is rolled back completely. Total system money remains constant.
   - **Concurrency**: Opposite simultaneous transfers between Account A and Account B serialize without deadlocks.
 - **Required Tests**: Transfer success, insufficient funds rollback, reverse concurrent transfers deadlock test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: New capability modernizing the legacy application.
 
 ---

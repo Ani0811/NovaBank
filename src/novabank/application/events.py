@@ -33,3 +33,19 @@ class WithdrawalCompletedEvent:
     timestamp: datetime
     actor: str = "system"
     description: str = "Cash Withdrawal"
+
+
+@dataclass(frozen=True)
+class TransferCompletedEvent:
+    """Emitted upon successful commit of an account-to-account fund transfer."""
+
+    source_account: str
+    destination_account: str
+    amount: Decimal
+    source_balance_after: Decimal
+    destination_balance_after: Decimal
+    currency: str
+    correlation_id: str
+    timestamp: datetime
+    actor: str = "system"
+    description: str = "Account Transfer"
