@@ -329,7 +329,7 @@
   - UI remains responsive (60 FPS) with loading spinners or progress bars during slow operations.
   - Worker captures exceptions and presents user-friendly error dialogs on the main thread.
 - **Required Tests**: Pytest-qt test verifying background execution and signal delivery without blocking GUI thread.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Guarantees zero GUI freezing.
 
 ---
