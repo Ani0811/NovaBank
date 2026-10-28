@@ -57,3 +57,14 @@ class DepositRequestDTO:
     description: str = "Cash Deposit"
     reference: Optional[str] = None
     actor: str = "system"
+
+
+@dataclass(frozen=True)
+class WithdrawalRequestDTO:
+    """Input parameters for initiating a cash withdrawal workflow."""
+
+    account_number: str
+    amount: Decimal
+    description: str = "Cash Withdrawal"
+    reference: Optional[str] = None
+    actor: str = "system"

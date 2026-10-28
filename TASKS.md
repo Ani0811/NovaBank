@@ -253,7 +253,7 @@
   - **Rollback**: If any error occurs after lock acquisition, transaction is immediately rolled back; balance remains unaltered.
   - **Concurrency**: When two concurrent withdrawals of $100 are executed against an account with $150 balance, exactly one succeeds ($50 remaining) and one fails with `InsufficientFundsError`. Overdraft is mathematically prevented.
 - **Required Tests**: Normal withdrawal test, overdraft rejection test, inactive account rejection, rollback test, concurrency double-spend test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Completely resolves the race condition in legacy `getWithdrawAmt()`.
 
 ---

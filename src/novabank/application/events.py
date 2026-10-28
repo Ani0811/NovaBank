@@ -19,3 +19,17 @@ class DepositCompletedEvent:
     timestamp: datetime
     actor: str = "system"
     description: str = "Cash Deposit"
+
+
+@dataclass(frozen=True)
+class WithdrawalCompletedEvent:
+    """Emitted upon successful commit of a cash withdrawal transaction."""
+
+    account_number: str
+    amount: Decimal
+    balance_after: Decimal
+    currency: str
+    transaction_ref: str
+    timestamp: datetime
+    actor: str = "system"
+    description: str = "Cash Withdrawal"

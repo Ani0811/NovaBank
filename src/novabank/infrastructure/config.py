@@ -92,7 +92,10 @@ def save_db_password_to_keyring(
     """Securely persist database password into Windows Credential Manager."""
     if not username:
         raise ValueError("Username cannot be empty when storing credential.")
-    keyring.set_password(service, username, password)
+    try:
+        keyring.set_password(service, username, password)
+    except Exception:
+        pass
 
 
 def get_db_password_from_keyring(
@@ -101,7 +104,10 @@ def get_db_password_from_keyring(
     """Retrieve database password from Windows Credential Manager."""
     if not username:
         return None
-    return keyring.get_password(service, username)
+    try:
+        return keyring.get_password(service, username)
+    except Exception:
+        return None
 
 
 def delete_db_password_from_keyring(username: str, service: str = KEYRING_SERVICE_NAME) -> None:

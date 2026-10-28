@@ -9,7 +9,7 @@ from typing import Any, Callable, Optional, Union
 from sqlalchemy.orm import Session, sessionmaker
 
 from novabank.application.dto.transaction_dto import TransactionDTO
-from novabank.application.events import DepositCompletedEvent
+from novabank.application.events import DepositCompletedEvent, WithdrawalCompletedEvent
 from novabank.domain.exceptions import (
     AccountClosedError,
     AccountNotFoundError,
@@ -143,6 +143,100 @@ class BankingService:
                     event = DepositCompletedEvent(
                         account_number=account.account_number.value,
                         amount=deposit_money.amount,
+                        balance_after=account.balance.amount,
+                        currency=account.balance.currency,
+                        transaction_ref=tx_entity.transaction_ref,
+                        timestamp=tx_entity.created_at,
+                        actor=actor,
+                        description=description,
+                    )
+
+            # 5. Emit event after transaction commits successfully
+            self._emit(event)
+            return dto
+
+    def withdraw(
+        self,
+        account_number: Union[AccountNumber, str],
+        amount: Union[Money, Decimal, str, int],
+        description: str = "Cash Withdrawal",
+        ref: Optional[str] = None,
+        actor: str = "system",
+    ) -> TransactionDTO:
+        """Atomically withdraw funds from a customer account.
+
+        Steps:
+        1. Parse and validate account number and monetary amount (> 0).
+        2. Acquire fine-grained in-process mutex for the account.
+        3. Begin atomic database transaction with pessimistic row lock (SELECT ... FOR UPDATE).
+        4. Validate account existence and active status.
+        5. Verify sufficient funds (balance >= amount, overdraft protection).
+        6. Apply debit mutation to Account domain entity (updating balance & version).
+        7. Persist updated Account and append immutable Transaction record.
+        8. Commit database transaction (or rollback entirely on failure).
+        9. Emit WithdrawalCompletedEvent and return TransactionDTO.
+
+        Raises:
+            AccountNotFoundError: If account does not exist.
+            AccountClosedError: If account is deactivated or closed.
+            InvalidAmountError: If amount is non-positive or invalid.
+            InsufficientFundsError: If requested amount exceeds available balance.
+            DuplicateTransactionRefError: If reference is duplicate.
+        """
+        # 1. Normalize account number string
+        if isinstance(account_number, AccountNumber):
+            acc_str = account_number.value
+        else:
+            acc_str = str(account_number).strip().replace("-", "").replace(" ", "")
+
+        # 2. Parse and validate amount
+        if isinstance(amount, Money):
+            withdraw_money = amount
+        else:
+            try:
+                withdraw_money = Money(amount, allow_negative=True)
+            except Exception as exc:
+                raise InvalidAmountError(f"Invalid monetary withdrawal amount: {amount}") from exc
+
+        if not withdraw_money.is_positive():
+            raise InvalidAmountError(
+                f"Withdrawal amount must be strictly positive, got {withdraw_money.formatted()}"
+            )
+
+        # 3. Synchronize in-process concurrent workers for this account
+        with self._lock_manager.get_lock(acc_str):
+            # 4. Atomic database transaction block
+            with self._session_factory() as session:
+                with session.begin():
+                    account_repo = SQLAccountRepository(session)
+                    tx_repo = SQLTransactionRepository(session)
+
+                    # Acquire pessimistic row-level lock
+                    account = account_repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+
+                    if not account.is_active:
+                        raise AccountClosedError(acc_str)
+
+                    # Domain entity debit execution (checks balance >= amount)
+                    tx_entity = account.debit(
+                        amount=withdraw_money,
+                        transaction_type=TransactionType.WITHDRAWAL,
+                        description=description,
+                        ref=ref,
+                        actor=actor,
+                    )
+
+                    # Persist changes
+                    account_repo.save(account)
+                    tx_repo.append(tx_entity)
+
+                    # Prepare DTO and Event before exiting transaction
+                    dto = TransactionDTO.from_entity(tx_entity)
+                    event = WithdrawalCompletedEvent(
+                        account_number=account.account_number.value,
+                        amount=withdraw_money.amount,
                         balance_after=account.balance.amount,
                         currency=account.balance.currency,
                         transaction_ref=tx_entity.transaction_ref,
