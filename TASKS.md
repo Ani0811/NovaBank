@@ -348,7 +348,7 @@
   - Submit button is disabled until all required fields are valid.
   - On submission: Opens account via `BankingService`, presents success confirmation modal displaying new 12-digit account number, and offers receipt printing.
 - **Required Tests**: Form validation tests, submission trigger test, error display test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Replaces legacy `getOpenAccount()` console input loops.
 
 ---

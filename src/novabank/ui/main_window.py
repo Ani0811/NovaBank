@@ -38,6 +38,10 @@ class MainWindow(QMainWindow):
             "Open New Account",
             "Register customer profile with instant identity validation",
         ),
+        "statements": (
+            "Account Statements",
+            "Generate and export official bank statements and reports",
+        ),
         "ledger": (
             "Ledger & Audit Trail",
             "Immutable financial transaction records and audit event history",
@@ -71,6 +75,11 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._apply_stylesheet()
+
+    @property
+    def current_view_key(self) -> str:
+        """Return the route key of currently active view."""
+        return self.sidebar.current_view
 
     def _build_ui(self) -> None:
         central_widget = QWidget(self)

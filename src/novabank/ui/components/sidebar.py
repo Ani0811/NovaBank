@@ -23,6 +23,7 @@ class Sidebar(QFrame):
     NAV_ITEMS: list[tuple[str, str, str]] = [
         ("dashboard", "Dashboard", "📊"),
         ("accounts", "Accounts", "👥"),
+        ("open_account", "Open Account", "➕"),
         ("transactions", "Transactions", "💳"),
         ("statements", "Statements", "📄"),
         ("ai_assistant", "AI Assistant", "🤖"),
@@ -89,6 +90,10 @@ class Sidebar(QFrame):
                 btn.setProperty("active", "true" if is_active else "false")
                 btn.style().unpolish(btn)
                 btn.style().polish(btn)
+
+    def set_active_route(self, view_key: str) -> None:
+        """Alias for set_active."""
+        self.set_active(view_key)
 
     @property
     def current_view(self) -> str:
