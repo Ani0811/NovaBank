@@ -312,7 +312,7 @@
   - Status bar displays database connection health indicator and session info.
   - Application handles high-DPI scaling gracefully.
 - **Required Tests**: `pytest-qt` test verifying window creation, sidebar navigation, and status bar updates.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Replaces console text menus.
 
 ---

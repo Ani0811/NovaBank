@@ -1,0 +1,165 @@
+/* NovaBank Fluent Desktop Theme (Dark Mode) */
+
+* {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    color: #f8fafc;
+}
+
+QMainWindow, QWidget#CentralWidget {
+    background-color: #0f172a;
+}
+
+/* -------------------------------------------------------------------------
+   Sidebar Navigation
+   ------------------------------------------------------------------------- */
+QFrame#SidebarFrame {
+    background-color: #090d16;
+    border-right: 1px solid #1e293b;
+    min-width: 240px;
+    max-width: 240px;
+}
+
+QLabel#BrandTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: #38bdf8;
+    padding-left: 4px;
+}
+
+QLabel#BrandSubtitle {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    padding-left: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+QPushButton.NavButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #94a3b8;
+    margin: 2px 10px;
+}
+
+QPushButton.NavButton:hover {
+    background-color: #1e293b;
+    color: #f8fafc;
+}
+
+QPushButton.NavButton:checked, QPushButton.NavButton[active="true"] {
+    background-color: #1e3a8a;
+    color: #ffffff;
+    font-weight: 600;
+    border-left: 3px solid #38bdf8;
+}
+
+/* -------------------------------------------------------------------------
+   Content Header Bar
+   ------------------------------------------------------------------------- */
+QFrame#HeaderBar {
+    background-color: #0f172a;
+    border-bottom: 1px solid #1e293b;
+    min-height: 56px;
+    max-height: 56px;
+    padding: 0 24px;
+}
+
+QLabel#HeaderTitle {
+    font-size: 18px;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+QLabel#HeaderSubtitle {
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* -------------------------------------------------------------------------
+   Cards & Panels
+   ------------------------------------------------------------------------- */
+QFrame.CardFrame {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+QLabel.CardTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #f8fafc;
+    margin-bottom: 6px;
+}
+
+QLabel.CardValue {
+    font-size: 24px;
+    font-weight: 700;
+    color: #38bdf8;
+}
+
+QLabel.CardMuted {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+/* -------------------------------------------------------------------------
+   Status Bar
+   ------------------------------------------------------------------------- */
+QStatusBar#NovaStatusBar {
+    background-color: #090d16;
+    border-top: 1px solid #1e293b;
+    min-height: 32px;
+    padding: 2px 12px;
+    color: #94a3b8;
+}
+
+QLabel.StatusIndicatorPill {
+    background-color: #1e293b;
+    border-radius: 10px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+QLabel.StatusIndicatorPill[status="success"] {
+    color: #34d399;
+    border: 1px solid #065f46;
+}
+
+QLabel.StatusIndicatorPill[status="warning"] {
+    color: #fbbf24;
+    border: 1px solid #92400e;
+}
+
+QLabel.StatusIndicatorPill[status="danger"] {
+    color: #f87171;
+    border: 1px solid #991b1b;
+}
+
+/* -------------------------------------------------------------------------
+   Buttons & Inputs
+   ------------------------------------------------------------------------- */
+QPushButton.PrimaryButton {
+    background-color: #2563eb;
+    color: #ffffff;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 8px 16px;
+    border: none;
+}
+
+QPushButton.PrimaryButton:hover {
+    background-color: #3b82f6;
+}
+
+QPushButton.PrimaryButton:pressed {
+    background-color: #1d4ed8;
+}
