@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import threading
 import uuid
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Callable, Optional, Union
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from novabank.application.dto.account_dto import AccountDTO, OpenAccountResultDTO
 from novabank.application.dto.transaction_dto import TransactionDTO, TransferResultDTO
 from novabank.application.events import (
+    AccountOpenedEvent,
     DepositCompletedEvent,
     TransferCompletedEvent,
     WithdrawalCompletedEvent,
 )
+from novabank.domain.entities.account import Account
 from novabank.domain.exceptions import (
     AccountClosedError,
     AccountNotFoundError,
@@ -69,6 +73,105 @@ class BankingService:
             except Exception:
                 # Listener exceptions must not break core business flows
                 pass
+
+    def open_account(
+        self,
+        holder_name: str,
+        dob: date,
+        address_line: str,
+        city: str,
+        state: str,
+        country: str,
+        phone_number: str,
+        initial_deposit: Optional[Union[Money, Decimal, str, int]] = None,
+        currency: str = "USD",
+        actor: str = "teller",
+    ) -> OpenAccountResultDTO:
+        """Register a new customer account with optional initial deposit.
+
+        Steps:
+        1. Parse and validate initial deposit amount (>= 0).
+        2. Begin database transaction.
+        3. Generate cryptographically random 12-digit AccountNumber unique in DB.
+        4. Create and validate Account domain entity.
+        5. If initial deposit > 0, credit account and create ledger record.
+        6. Persist account and transaction.
+        7. Commit transaction.
+        8. Emit AccountOpenedEvent.
+        9. Return OpenAccountResultDTO.
+        """
+        if initial_deposit is not None:
+            if isinstance(initial_deposit, Money):
+                deposit_money = initial_deposit
+            else:
+                try:
+                    deposit_money = Money(initial_deposit, currency=currency, allow_negative=True)
+                except Exception as exc:
+                    raise InvalidAmountError(
+                        f"Invalid initial deposit amount: {initial_deposit}"
+                    ) from exc
+            if deposit_money.is_negative():
+                raise InvalidAmountError(
+                    f"Initial deposit cannot be negative, got {deposit_money.formatted()}"
+                )
+        else:
+            deposit_money = Money.zero(currency=currency)
+
+        with self._session_factory() as session:
+            with session.begin():
+                account_repo = SQLAccountRepository(session)
+                tx_repo = SQLTransactionRepository(session)
+
+                # Generate unique account number
+                while True:
+                    candidate = AccountNumber.generate()
+                    if account_repo.get_by_number(candidate.value) is None:
+                        account_number = candidate
+                        break
+
+                account = Account(
+                    account_number=account_number,
+                    holder_name=holder_name,
+                    dob=dob,
+                    address_line=address_line,
+                    city=city,
+                    state=state,
+                    country=country,
+                    phone_number=phone_number,
+                    balance=Money.zero(currency=currency),
+                )
+
+                initial_tx_dto: Optional[TransactionDTO] = None
+                if deposit_money.is_positive():
+                    tx_entity = account.credit(
+                        amount=deposit_money,
+                        transaction_type=TransactionType.DEPOSIT,
+                        description="Initial Deposit",
+                        actor=actor,
+                    )
+                    account_repo.save(account)
+                    tx_repo.append(tx_entity)
+                    initial_tx_dto = TransactionDTO.from_entity(tx_entity)
+                else:
+                    account_repo.save(account)
+
+                result_dto = OpenAccountResultDTO(
+                    account=AccountDTO.from_entity(account),
+                    initial_transaction=initial_tx_dto,
+                )
+
+                event = AccountOpenedEvent(
+                    account_number=account.account_number.value,
+                    holder_name=account.holder_name,
+                    phone_number=account.phone_number,
+                    initial_deposit=deposit_money.amount,
+                    currency=currency,
+                    timestamp=datetime.now(timezone.utc),
+                    actor=actor,
+                )
+
+        self._emit(event)
+        return result_dto
 
     def deposit(
         self,

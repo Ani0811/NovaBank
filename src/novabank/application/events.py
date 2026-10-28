@@ -8,6 +8,19 @@ from decimal import Decimal
 
 
 @dataclass(frozen=True)
+class AccountOpenedEvent:
+    """Emitted upon successful creation and registration of a new customer account."""
+
+    account_number: str
+    holder_name: str
+    phone_number: str
+    initial_deposit: Decimal
+    currency: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
 class DepositCompletedEvent:
     """Emitted upon successful commit of a cash deposit transaction."""
 

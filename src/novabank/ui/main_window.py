@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtWidgets import (
     QFrame,
@@ -17,6 +17,11 @@ from PySide6.QtWidgets import (
 
 from novabank.ui.components.sidebar import Sidebar
 from novabank.ui.components.status_bar import NovaStatusBar
+from novabank.ui.views.open_account_view import OpenAccountView
+from novabank.ui.workers.task_runner import TaskRunner
+
+if TYPE_CHECKING:
+    from novabank.application.services.banking_service import BankingService
 
 
 class MainWindow(QMainWindow):
@@ -29,9 +34,13 @@ class MainWindow(QMainWindow):
             "Transactions & Cash Desk",
             "Execute atomic deposits, withdrawals, and transfers",
         ),
-        "statements": (
-            "Account Statements",
-            "Generate and export digital statements and summaries",
+        "open_account": (
+            "Open New Account",
+            "Register customer profile with instant identity validation",
+        ),
+        "ledger": (
+            "Ledger & Audit Trail",
+            "Immutable financial transaction records and audit event history",
         ),
         "ai_assistant": (
             "AI Banking Assistant",
@@ -43,8 +52,17 @@ class MainWindow(QMainWindow):
         ),
     }
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        banking_service: Optional[BankingService] = None,
+        task_runner: Optional[TaskRunner] = None,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
+        self.banking_service = banking_service
+        self.task_runner = task_runner or TaskRunner()
+        self.open_account_view: Optional[OpenAccountView] = None
+
         self.setWindowTitle("NovaBank - Enterprise Banking System")
         self.setMinimumSize(1024, 680)
         self.resize(1280, 800)
@@ -94,9 +112,17 @@ class MainWindow(QMainWindow):
         self.view_stack = QStackedWidget()
         self.view_stack.setObjectName("MainViewStack")
 
-        # Initialize placeholder pages for each navigation route
+        # Initialize pages for each navigation route
         for view_key, (title, desc) in self.PAGE_TITLES.items():
-            page = self._create_placeholder_page(view_key, title, desc)
+            if view_key == "open_account":
+                page = OpenAccountView(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.open_account_view = page
+            else:
+                page = self._create_placeholder_page(view_key, title, desc)
             idx = self.view_stack.addWidget(page)
             self._view_indices[view_key] = idx
 
@@ -138,29 +164,21 @@ class MainWindow(QMainWindow):
         return page
 
     def _apply_stylesheet(self) -> None:
-        """Load and apply QSS stylesheet."""
+        """Load and apply QSS dark theme stylesheet."""
         qss_path = Path(__file__).parent / "resources" / "styles.qss"
-        if qss_path.is_file():
+        if qss_path.exists():
             stylesheet = qss_path.read_text(encoding="utf-8")
             self.setStyleSheet(stylesheet)
 
-    def navigate_to(self, view_key: str) -> None:
-        """Switch view stack and update sidebar and header."""
-        if view_key in self._view_indices:
-            idx = self._view_indices[view_key]
-            self.view_stack.setCurrentIndex(idx)
-            self.sidebar.set_active(view_key)
+    def navigate_to(self, route_key: str) -> None:
+        """Navigate content stack to the given route and update header info."""
+        if route_key not in self._view_indices:
+            return
 
-            if view_key in self.PAGE_TITLES:
-                title, desc = self.PAGE_TITLES[view_key]
-                self.header_title.setText(title)
-                self.header_subtitle.setText(desc)
+        index = self._view_indices[route_key]
+        self.view_stack.setCurrentIndex(index)
+        self.sidebar.set_active_route(route_key)
 
-    @property
-    def current_view_key(self) -> str:
-        """Return currently visible view key."""
-        current_idx = self.view_stack.currentIndex()
-        for k, idx in self._view_indices.items():
-            if idx == current_idx:
-                return k
-        return "dashboard"
+        title, subtitle = self.PAGE_TITLES.get(route_key, ("NovaBank", ""))
+        self.header_title.setText(title)
+        self.header_subtitle.setText(subtitle)

@@ -3,4 +3,3 @@
 from novabank.ui.workers.task_runner import TaskRunner, Worker, WorkerSignals
 
 __all__ = ["TaskRunner", "Worker", "WorkerSignals"]
-
