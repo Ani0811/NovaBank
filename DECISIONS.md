@@ -16,6 +16,7 @@ This document records the critical architectural and engineering decisions made 
 | **ADR-008** | Local AI Integration: LM Studio via Localhost OpenAI-Compatible REST | Accepted | 2026-10-24 |
 | **ADR-009** | UI Threading: `QThreadPool` / `QRunnable` Worker Architecture | Accepted | 2026-10-24 |
 | **ADR-010** | Packaging: PyInstaller Standalone Bundle with Inno Setup Installer | Accepted | 2026-10-24 |
+| **ADR-011** | Omission of Legacy Data ETL Importer (TASK-P1-05) | Accepted | 2026-10-28 |
 
 ---
 
@@ -151,6 +152,19 @@ This document records the critical architectural and engineering decisions made 
 - **Consequences**:
   - *Positive*: One-click Windows installation; runs on machines without Python installed.
   - *Negative*: Build process must be maintained and verified on Windows.
+
+---
+
+
+### ADR-011: Omission of Legacy Data ETL Importer (TASK-P1-05)
+- **Status**: Accepted
+- **Context**: The roadmap initially planned `TASK-P1-05` to build a read-only ETL script importing historical records from legacy `narDB.BMS_MASTER` and `narDB.BMS_ACCOUNTS`. The user confirmed that no historical or production legacy data exists in the MySQL database.
+- **Decision**: Omit `TASK-P1-05` as obsolete. Conclude Phase 1 with all domain models, repositories, transactions, migrations, and stress testing suites fully verified. All customer accounts and ledger transactions will be created directly in the modern NovaBank schema.
+- **Alternatives Considered**:
+  - *Building mock ETL anyway*: Waste of engineering effort and introduces dead code that will never run in production.
+- **Consequences**:
+  - *Positive*: Streamlines delivery, prevents unnecessary ETL code debt, and immediately advances project execution into Phase 2 desktop UI development.
+  - *Negative*: None.
 
 ---
 

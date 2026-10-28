@@ -180,8 +180,8 @@
   - Validates total sum of legacy credits minus debits equals final calculated account balance.
   - Generates detailed reconciliation report showing migrated accounts, transactions, and any validation discrepancies.
 - **Required Tests**: Migration test on mock legacy dataset with edge cases (zero balance, multiple deposits, closed accounts).
-- **Status**: Planned
-- **Notes**: Non-destructive; leaves legacy tables intact.
+- **Status**: Obsolete / Not Needed
+- **Notes**: Deprecated by user decision: No historical data exists in MySQL/narDB. All accounts and transactions will be created fresh via NovaBank modern schema.
 
 ---
 
