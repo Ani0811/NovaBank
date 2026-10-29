@@ -21,6 +21,28 @@ class AccountOpenedEvent:
 
 
 @dataclass(frozen=True)
+class ProfileUpdatedEvent:
+    """Emitted upon successful modification of customer contact information."""
+
+    account_number: str
+    phone_number: str
+    city: str
+    state: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class AccountClosedEvent:
+    """Emitted upon account closure."""
+
+    account_number: str
+    reason: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
 class DepositCompletedEvent:
     """Emitted upon successful commit of a cash deposit transaction."""
 

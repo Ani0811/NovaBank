@@ -17,11 +17,13 @@ from PySide6.QtWidgets import (
 
 from novabank.ui.components.sidebar import Sidebar
 from novabank.ui.components.status_bar import NovaStatusBar
+from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.workers.task_runner import TaskRunner
 
 if TYPE_CHECKING:
+    from novabank.application.dto.account_dto import AccountDTO
     from novabank.application.services.banking_service import BankingService
 
 
@@ -31,6 +33,10 @@ class MainWindow(QMainWindow):
     PAGE_TITLES: dict[str, tuple[str, str]] = {
         "dashboard": ("Dashboard", "Financial overview and key performance metrics"),
         "accounts": ("Accounts Management", "Customer account administration and profile updates"),
+        "account_detail": (
+            "Account Details",
+            "Comprehensive customer profile and balance inspection",
+        ),
         "transactions": (
             "Transactions & Cash Desk",
             "Execute atomic deposits, withdrawals, and transfers",
@@ -68,6 +74,7 @@ class MainWindow(QMainWindow):
         self.task_runner = task_runner or TaskRunner()
         self.open_account_view: Optional[OpenAccountView] = None
         self.account_list_view: Optional[AccountListView] = None
+        self.account_detail_view: Optional[AccountDetailView] = None
 
         self.setWindowTitle("NovaBank - Enterprise Banking System")
         self.setMinimumSize(1024, 680)
@@ -139,10 +146,22 @@ class MainWindow(QMainWindow):
                     parent=self,
                 )
                 self.account_list_view = page
+            elif view_key == "account_detail":
+                page = AccountDetailView(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.account_detail_view = page
             else:
                 page = self._create_placeholder_page(view_key, title, desc)
             idx = self.view_stack.addWidget(page)
             self._view_indices[view_key] = idx
+
+        # Connect view transitions
+        if self.account_list_view and self.account_detail_view:
+            self.account_list_view.account_detail_requested.connect(self._show_account_detail)
+            self.account_detail_view.back_requested.connect(lambda: self.navigate_to("accounts"))
 
         content_layout.addWidget(self.view_stack)
         root_layout.addWidget(content_container, stretch=1)
@@ -153,6 +172,12 @@ class MainWindow(QMainWindow):
 
         # Set default view
         self.navigate_to("dashboard")
+
+    def _show_account_detail(self, account: AccountDTO) -> None:
+        """Switch to AccountDetailView and populate customer information."""
+        if self.account_detail_view:
+            self.account_detail_view.set_account(account)
+            self.navigate_to("account_detail")
 
     def _create_placeholder_page(self, view_key: str, title: str, description: str) -> QWidget:
         """Create a placeholder card page for the given view."""

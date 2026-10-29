@@ -386,7 +386,7 @@
   - Prohibits editing account number, holder name (without manager override), or balance directly through this view.
   - Saves updates via `BankingService`, records an audit event, and refreshes view.
 - **Required Tests**: Profile load test, edit validation test, update submission test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Replaces legacy `getModifyAccount()` and `getAccountDetails()`.
 
 ---

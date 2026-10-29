@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from novabank.application.dto.account_dto import AccountDTO, OpenAccountResultDTO
 from novabank.application.dto.transaction_dto import TransactionDTO, TransferResultDTO
 from novabank.application.events import (
+    AccountClosedEvent,
     AccountOpenedEvent,
     DepositCompletedEvent,
+    ProfileUpdatedEvent,
     TransferCompletedEvent,
     WithdrawalCompletedEvent,
 )
@@ -217,6 +219,86 @@ class BankingService:
             repo = SQLAccountRepository(session)
             entity = repo.get_by_number(acc_str)
             return AccountDTO.from_entity(entity) if entity else None
+
+    def update_account_profile(
+        self,
+        account_number: Union[AccountNumber, str],
+        address_line: str,
+        city: str,
+        state: str,
+        country: str,
+        phone_number: str,
+        actor: str = "teller",
+    ) -> AccountDTO:
+        """Update mutable customer profile details (address and contact information)."""
+        if isinstance(account_number, AccountNumber):
+            acc_str = account_number.value
+        else:
+            acc_str = str(account_number).strip().replace("-", "").replace(" ", "")
+
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    repo = SQLAccountRepository(session)
+                    account = repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+
+                    account.update_profile(
+                        address_line=address_line,
+                        city=city,
+                        state=state,
+                        country=country,
+                        phone_number=phone_number,
+                    )
+                    repo.save(account)
+                    dto = AccountDTO.from_entity(account)
+
+                    event = ProfileUpdatedEvent(
+                        account_number=acc_str,
+                        phone_number=phone_number,
+                        city=city,
+                        state=state,
+                        timestamp=datetime.now(timezone.utc),
+                        actor=actor,
+                    )
+
+            self._emit(event)
+            return dto
+
+    def close_account(
+        self,
+        account_number: Union[AccountNumber, str],
+        reason: str = "Customer request",
+        actor: str = "teller",
+    ) -> AccountDTO:
+        """Deactivate/close an account with zero balance invariant."""
+        if isinstance(account_number, AccountNumber):
+            acc_str = account_number.value
+        else:
+            acc_str = str(account_number).strip().replace("-", "").replace(" ", "")
+
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    repo = SQLAccountRepository(session)
+                    account = repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+
+                    account.close(reason=reason)
+                    repo.save(account)
+                    dto = AccountDTO.from_entity(account)
+
+                    event = AccountClosedEvent(
+                        account_number=acc_str,
+                        reason=reason,
+                        timestamp=datetime.now(timezone.utc),
+                        actor=actor,
+                    )
+
+            self._emit(event)
+            return dto
 
     def deposit(
         self,
