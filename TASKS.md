@@ -422,7 +422,7 @@
   - Displays transaction preview (Previous Balance, Deposit Amount, New Balance).
   - Submits asynchronously; displays digital deposit receipt upon completion with print option.
 - **Required Tests**: Account lookup trigger test, amount validation test, submission test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Modernizes legacy `getDepositAmt()`.
 
 ---

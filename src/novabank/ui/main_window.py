@@ -19,6 +19,7 @@ from novabank.ui.components.sidebar import Sidebar
 from novabank.ui.components.status_bar import NovaStatusBar
 from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
+from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.workers.task_runner import TaskRunner
 
@@ -75,6 +76,7 @@ class MainWindow(QMainWindow):
         self.open_account_view: Optional[OpenAccountView] = None
         self.account_list_view: Optional[AccountListView] = None
         self.account_detail_view: Optional[AccountDetailView] = None
+        self.deposit_view: Optional[DepositView] = None
 
         self.setWindowTitle("NovaBank - Enterprise Banking System")
         self.setMinimumSize(1024, 680)
@@ -153,6 +155,13 @@ class MainWindow(QMainWindow):
                     parent=self,
                 )
                 self.account_detail_view = page
+            elif view_key == "transactions":
+                page = DepositView(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.deposit_view = page
             else:
                 page = self._create_placeholder_page(view_key, title, desc)
             idx = self.view_stack.addWidget(page)
