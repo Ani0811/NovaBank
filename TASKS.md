@@ -459,7 +459,7 @@
   - Validates available balance on source account.
   - Submits atomic transfer and presents dual-receipt summary.
 - **Required Tests**: Dual account validation test, same-account block test, transfer execution test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: New feature.
 
 ---

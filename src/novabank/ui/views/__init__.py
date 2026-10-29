@@ -5,6 +5,8 @@ from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
+from novabank.ui.views.transactions_hub_view import TransactionsHubView
+from novabank.ui.views.transfer_view import TransferReceiptDialog, TransferView
 from novabank.ui.views.withdrawal_view import WithdrawalView
 
 __all__ = [
@@ -13,5 +15,8 @@ __all__ = [
     "AccountListView",
     "DepositView",
     "OpenAccountView",
+    "TransactionsHubView",
+    "TransferReceiptDialog",
+    "TransferView",
     "WithdrawalView",
 ]

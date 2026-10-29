@@ -41,7 +41,9 @@ class WithdrawalView(QWidget):
         super().__init__(parent)
         self.banking_service = banking_service
         self.task_runner = task_runner
-        self.vm = viewmodel or TransactionViewModel(banking_service, task_runner, parent=self)
+        self.vm = viewmodel or TransactionViewModel(
+            banking_service, task_runner, mode="withdrawal", parent=self
+        )
 
         self._setup_ui()
         self._bind_viewmodel()

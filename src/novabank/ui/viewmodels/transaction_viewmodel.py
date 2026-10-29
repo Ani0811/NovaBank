@@ -37,11 +37,13 @@ class TransactionViewModel(QObject):
         self,
         banking_service: Optional[BankingService] = None,
         task_runner: Optional[TaskRunner] = None,
+        mode: str = "deposit",
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self.banking_service = banking_service
         self.task_runner = task_runner
+        self.mode = mode
 
         # State
         self.source_account: Optional[AccountDTO] = None
@@ -74,12 +76,12 @@ class TransactionViewModel(QObject):
             else:
                 self.source_account = None
                 self.account_lookup_failed.emit(f"Account {clean_num} does not exist.")
-            self.validate_deposit()
+            self.validate_current()
 
         def _on_error(exc: Exception, tb: str):
             self.source_account = None
             self.account_lookup_failed.emit(str(exc))
-            self.validate_deposit()
+            self.validate_current()
 
         self.task_runner.run_async(_fetch, on_result=_on_success, on_error=_on_error)
 
@@ -105,12 +107,12 @@ class TransactionViewModel(QObject):
                 self.destination_account_failed.emit(
                     f"Destination account {clean_num} does not exist."
                 )
-            self.validate_transfer()
+            self.validate_current()
 
         def _on_error(exc: Exception, tb: str):
             self.destination_account = None
             self.destination_account_failed.emit(str(exc))
-            self.validate_transfer()
+            self.validate_current()
 
         self.task_runner.run_async(_fetch, on_result=_on_success, on_error=_on_error)
 
@@ -144,6 +146,27 @@ class TransactionViewModel(QObject):
         withdraw_amt = self.parse_amount() or Decimal("0.00")
         projected = current - withdraw_amt if withdraw_amt > 0 else current
         return current, withdraw_amt, projected
+
+    def calculate_transfer_preview(
+        self,
+    ) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal]:
+        """Return (src_current, dst_current, transfer_amount, src_projected, dst_projected)."""
+        src_current = self.source_account.balance if self.source_account else Decimal("0.00")
+        dst_current = (
+            self.destination_account.balance if self.destination_account else Decimal("0.00")
+        )
+        amt = self.parse_amount() or Decimal("0.00")
+        src_projected = src_current - amt if amt > 0 else src_current
+        dst_projected = dst_current + amt if amt > 0 else dst_current
+        return src_current, dst_current, amt, src_projected, dst_projected
+
+    def validate_current(self) -> tuple[bool, dict[str, str]]:
+        """Validate inputs according to active transaction mode."""
+        if self.mode == "withdrawal":
+            return self.validate_withdrawal()
+        elif self.mode == "transfer":
+            return self.validate_transfer()
+        return self.validate_deposit()
 
     def validate_deposit(self) -> tuple[bool, dict[str, str]]:
         """Validate inputs for cash deposit."""
@@ -282,8 +305,24 @@ class TransactionViewModel(QObject):
             )
 
         def _on_success(dto: TransactionDTO):
-            # Refresh source account
-            self.lookup_source_account(acc_num)
+            if self.source_account:
+                self.source_account = AccountDTO(
+                    account_number=self.source_account.account_number,
+                    holder_name=self.source_account.holder_name,
+                    dob=self.source_account.dob,
+                    address_line=self.source_account.address_line,
+                    city=self.source_account.city,
+                    state=self.source_account.state,
+                    country=self.source_account.country,
+                    phone_number=self.source_account.phone_number,
+                    balance=dto.balance_after,
+                    currency=self.source_account.currency,
+                    is_active=self.source_account.is_active,
+                    version=self.source_account.version + 1,
+                    created_at=self.source_account.created_at,
+                    updated_at=dto.created_at,
+                )
+                self.account_found.emit(self.source_account)
             self.transaction_completed.emit(dto)
 
         def _on_error(exc: Exception, tb: str):
@@ -327,7 +366,24 @@ class TransactionViewModel(QObject):
             )
 
         def _on_success(dto: TransactionDTO):
-            self.lookup_source_account(acc_num)
+            if self.source_account:
+                self.source_account = AccountDTO(
+                    account_number=self.source_account.account_number,
+                    holder_name=self.source_account.holder_name,
+                    dob=self.source_account.dob,
+                    address_line=self.source_account.address_line,
+                    city=self.source_account.city,
+                    state=self.source_account.state,
+                    country=self.source_account.country,
+                    phone_number=self.source_account.phone_number,
+                    balance=dto.balance_after,
+                    currency=self.source_account.currency,
+                    is_active=self.source_account.is_active,
+                    version=self.source_account.version + 1,
+                    created_at=self.source_account.created_at,
+                    updated_at=dto.created_at,
+                )
+                self.account_found.emit(self.source_account)
             self.transaction_completed.emit(dto)
 
         def _on_error(exc: Exception, tb: str):
@@ -374,8 +430,42 @@ class TransactionViewModel(QObject):
             )
 
         def _on_success(dto: TransferResultDTO):
-            self.lookup_source_account(src_num)
-            self.lookup_destination_account(dst_num)
+            if self.source_account:
+                self.source_account = AccountDTO(
+                    account_number=self.source_account.account_number,
+                    holder_name=self.source_account.holder_name,
+                    dob=self.source_account.dob,
+                    address_line=self.source_account.address_line,
+                    city=self.source_account.city,
+                    state=self.source_account.state,
+                    country=self.source_account.country,
+                    phone_number=self.source_account.phone_number,
+                    balance=dto.source_transaction.balance_after,
+                    currency=self.source_account.currency,
+                    is_active=self.source_account.is_active,
+                    version=self.source_account.version + 1,
+                    created_at=self.source_account.created_at,
+                    updated_at=dto.timestamp,
+                )
+                self.account_found.emit(self.source_account)
+            if self.destination_account:
+                self.destination_account = AccountDTO(
+                    account_number=self.destination_account.account_number,
+                    holder_name=self.destination_account.holder_name,
+                    dob=self.destination_account.dob,
+                    address_line=self.destination_account.address_line,
+                    city=self.destination_account.city,
+                    state=self.destination_account.state,
+                    country=self.destination_account.country,
+                    phone_number=self.destination_account.phone_number,
+                    balance=dto.destination_transaction.balance_after,
+                    currency=self.destination_account.currency,
+                    is_active=self.destination_account.is_active,
+                    version=self.destination_account.version + 1,
+                    created_at=self.destination_account.created_at,
+                    updated_at=dto.timestamp,
+                )
+                self.destination_account_found.emit(self.destination_account)
             self.transaction_completed.emit(dto)
 
         def _on_error(exc: Exception, tb: str):

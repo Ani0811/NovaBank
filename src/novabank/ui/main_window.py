@@ -21,6 +21,9 @@ from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
+from novabank.ui.views.transactions_hub_view import TransactionsHubView
+from novabank.ui.views.transfer_view import TransferView
+from novabank.ui.views.withdrawal_view import WithdrawalView
 from novabank.ui.workers.task_runner import TaskRunner
 
 if TYPE_CHECKING:
@@ -76,7 +79,10 @@ class MainWindow(QMainWindow):
         self.open_account_view: Optional[OpenAccountView] = None
         self.account_list_view: Optional[AccountListView] = None
         self.account_detail_view: Optional[AccountDetailView] = None
+        self.transactions_hub_view: Optional[TransactionsHubView] = None
         self.deposit_view: Optional[DepositView] = None
+        self.withdrawal_view: Optional[WithdrawalView] = None
+        self.transfer_view: Optional[TransferView] = None
 
         self.setWindowTitle("NovaBank - Enterprise Banking System")
         self.setMinimumSize(1024, 680)
@@ -156,12 +162,15 @@ class MainWindow(QMainWindow):
                 )
                 self.account_detail_view = page
             elif view_key == "transactions":
-                page = DepositView(
+                page = TransactionsHubView(
                     banking_service=self.banking_service,
                     task_runner=self.task_runner,
                     parent=self,
                 )
-                self.deposit_view = page
+                self.transactions_hub_view = page
+                self.deposit_view = page.deposit_view
+                self.withdrawal_view = page.withdrawal_view
+                self.transfer_view = page.transfer_view
             else:
                 page = self._create_placeholder_page(view_key, title, desc)
             idx = self.view_stack.addWidget(page)
