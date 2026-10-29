@@ -440,7 +440,7 @@
   - Enforces active account requirement; inactive accounts show a prominent closure notice.
   - Submits asynchronously via `BankingService`; displays digital withdrawal slip upon completion.
 - **Required Tests**: Overdraft prevention UI test, inactive account block test, successful withdrawal test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Modernizes legacy `getWithdrawAmt()`.
 
 ---
