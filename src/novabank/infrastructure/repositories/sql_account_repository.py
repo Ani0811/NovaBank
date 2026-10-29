@@ -1,4 +1,4 @@
-"""SQLAlchemy implementation of AccountRepositoryInterface."""
+"""SQLAlchemy implementation of the Account repository with parameterized queries."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from novabank.infrastructure.db.models import AccountModel
 
 
 class SQLAccountRepository(AccountRepositoryInterface):
-    """SQL repository for Account entities using SQLAlchemy 2.0 with parameterized queries."""
+    """Repository handling Account persistence using SQLAlchemy Core/ORM."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -25,44 +25,60 @@ class SQLAccountRepository(AccountRepositoryInterface):
         return str(account_number).strip().replace("-", "").replace(" ", "")
 
     def save(self, account: Account) -> None:
-        """Persist a new or modified Account entity."""
+        """Persist new or modified account model."""
         acc_num = account.account_number.value
-        existing_model = self._session.get(AccountModel, acc_num)
+        model = self._session.get(AccountModel, acc_num)
 
-        if existing_model is None:
-            new_model = AccountModel.from_entity(account)
-            self._session.add(new_model)
+        if model is None:
+            # Create new
+            model = AccountModel.from_entity(account)
+            self._session.add(model)
         else:
-            existing_model.update_from_entity(account)
+            # Update existing in-place
+            model.holder_name = account.holder_name
+            model.dob = account.dob
+            model.address_line = account.address_line
+            model.city = account.city
+            model.state = account.state
+            model.country = account.country
+            model.phone_number = account.phone_number
+            model.is_active = account.is_active
+            model.balance = account.balance.amount
+            model.currency = account.balance.currency
+            model.version = account.version
+            model.updated_at = account.updated_at
 
         self._session.flush()
 
     def get_by_number(self, account_number: Union[AccountNumber, str]) -> Optional[Account]:
-        """Fetch account entity by account number with parameterized lookup."""
+        """Fetch account entity by account number."""
         acc_num = self._normalize_account_number(account_number)
         model = self._session.get(AccountModel, acc_num)
-        return model.to_entity() if model is not None else None
+        return model.to_entity() if model else None
 
     def get_by_number_for_update(
         self, account_number: Union[AccountNumber, str]
     ) -> Optional[Account]:
-        """Fetch account entity acquiring a pessimistic row lock (SELECT ... FOR UPDATE)."""
+        """Fetch account with pessimistic row lock (SELECT ... FOR UPDATE)."""
         acc_num = self._normalize_account_number(account_number)
         stmt = select(AccountModel).where(AccountModel.account_number == acc_num).with_for_update()
         model = self._session.execute(stmt).scalar_one_or_none()
-        return model.to_entity() if model is not None else None
+        return model.to_entity() if model else None
 
     def list_accounts(
         self,
         search: Optional[str] = None,
         active_only: bool = False,
+        is_active: Optional[bool] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Account]:
         """Retrieve paginated and filtered accounts with parameterized queries."""
         stmt = select(AccountModel)
 
-        if active_only:
+        if is_active is not None:
+            stmt = stmt.where(AccountModel.is_active.is_(is_active))
+        elif active_only:
             stmt = stmt.where(AccountModel.is_active.is_(True))
 
         if search and search.strip():
@@ -89,11 +105,14 @@ class SQLAccountRepository(AccountRepositoryInterface):
         self,
         search: Optional[str] = None,
         active_only: bool = False,
+        is_active: Optional[bool] = None,
     ) -> int:
         """Count total accounts matching filter parameters."""
         stmt = select(func.count(AccountModel.account_number))
 
-        if active_only:
+        if is_active is not None:
+            stmt = stmt.where(AccountModel.is_active.is_(is_active))
+        elif active_only:
             stmt = stmt.where(AccountModel.is_active.is_(True))
 
         if search and search.strip():

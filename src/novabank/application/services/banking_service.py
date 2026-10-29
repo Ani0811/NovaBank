@@ -173,6 +173,51 @@ class BankingService:
         self._emit(event)
         return result_dto
 
+    def list_accounts(
+        self,
+        search: Optional[str] = None,
+        active_only: bool = False,
+        status_filter: str = "ALL",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[AccountDTO], int]:
+        """Query paginated customer accounts with optional search and status filters."""
+        is_active: Optional[bool] = None
+        if status_filter == "ACTIVE":
+            is_active = True
+        elif status_filter == "CLOSED":
+            is_active = False
+
+        offset = max(0, (page - 1) * page_size)
+        with self._session_factory() as session:
+            repo = SQLAccountRepository(session)
+            total_count = repo.count_accounts(
+                search=search,
+                active_only=active_only,
+                is_active=is_active,
+            )
+            entities = repo.list_accounts(
+                search=search,
+                active_only=active_only,
+                is_active=is_active,
+                limit=page_size,
+                offset=offset,
+            )
+            dtos = [AccountDTO.from_entity(e) for e in entities]
+            return dtos, total_count
+
+    def get_account(self, account_number: Union[AccountNumber, str]) -> Optional[AccountDTO]:
+        """Fetch account DTO by account number."""
+        if isinstance(account_number, AccountNumber):
+            acc_str = account_number.value
+        else:
+            acc_str = str(account_number).strip().replace("-", "").replace(" ", "")
+
+        with self._session_factory() as session:
+            repo = SQLAccountRepository(session)
+            entity = repo.get_by_number(acc_str)
+            return AccountDTO.from_entity(entity) if entity else None
+
     def deposit(
         self,
         account_number: Union[AccountNumber, str],

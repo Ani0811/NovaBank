@@ -72,4 +72,3 @@ class OpenAccountResultDTO:
 
     account: AccountDTO
     initial_transaction: Optional[TransactionDTO] = None
-

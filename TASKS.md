@@ -367,7 +367,7 @@
   - Filter chips allow viewing All, Active Only, or Closed Only.
   - Double-clicking a row navigates to the Account Detail View.
 - **Required Tests**: Table population test, search filter debounce test, navigation signal test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Modernizes legacy `getAccountsList()`.
 
 ---

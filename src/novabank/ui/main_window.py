@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from novabank.ui.components.sidebar import Sidebar
 from novabank.ui.components.status_bar import NovaStatusBar
+from novabank.ui.views.account_list_view import AccountListView
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.workers.task_runner import TaskRunner
 
@@ -66,6 +67,7 @@ class MainWindow(QMainWindow):
         self.banking_service = banking_service
         self.task_runner = task_runner or TaskRunner()
         self.open_account_view: Optional[OpenAccountView] = None
+        self.account_list_view: Optional[AccountListView] = None
 
         self.setWindowTitle("NovaBank - Enterprise Banking System")
         self.setMinimumSize(1024, 680)
@@ -130,6 +132,13 @@ class MainWindow(QMainWindow):
                     parent=self,
                 )
                 self.open_account_view = page
+            elif view_key == "accounts":
+                page = AccountListView(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.account_list_view = page
             else:
                 page = self._create_placeholder_page(view_key, title, desc)
             idx = self.view_stack.addWidget(page)
