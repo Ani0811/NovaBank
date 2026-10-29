@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from unittest.mock import MagicMock
 
 import pytest
-from PySide6.QtWidgets import QLabel, QMessageBox
+from PySide6.QtWidgets import QLabel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -200,7 +199,7 @@ def test_account_detail_view_rendering_and_discard(qtbot, banking_service) -> No
 
 
 def test_account_detail_view_close_guardrails(qtbot, banking_service, monkeypatch) -> None:
-    """Verify close button blocks non-zero balance with warning."""
+    """Verify close button launches AccountCloseDialog."""
     task_runner = TaskRunner()
     res = banking_service.open_account(
         holder_name="Hal Jordan",
@@ -220,16 +219,13 @@ def test_account_detail_view_close_guardrails(qtbot, banking_service, monkeypatc
     qtbot.addWidget(view)
     view.set_account(res.account)
 
-    warning_mock = MagicMock()
-    monkeypatch.setattr(QMessageBox, "warning", warning_mock)
+    dialog_executed = []
+    from novabank.ui.views.account_close_dialog import AccountCloseDialog
 
-    # Click close button while balance is $100
+    monkeypatch.setattr(AccountCloseDialog, "exec", lambda self: dialog_executed.append(True) or 0)
+
     view.close_btn.click()
-
-    assert warning_mock.called is True
-    args = warning_mock.call_args[0]
-    assert "Cannot Close Account" in args[1]
-    assert "remaining balance must be withdrawn" in args[2]
+    assert dialog_executed == [True]
 
 
 def test_account_detail_view_back_requested_signal(qtbot) -> None:

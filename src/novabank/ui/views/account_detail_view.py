@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QDialog,
     QFormLayout,
     QFrame,
     QHBoxLayout,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from novabank.application.dto.account_dto import AccountDTO
 from novabank.ui.viewmodels.account_detail_viewmodel import AccountDetailViewModel
+from novabank.ui.views.account_close_dialog import AccountCloseDialog
 
 if TYPE_CHECKING:
     from novabank.application.services.banking_service import BankingService
@@ -361,30 +363,10 @@ class AccountDetailView(QWidget):
         if not self.vm.account:
             return
 
-        acc = self.vm.account
-        # Check balance invariant
-        if acc.balance > 0:
-            QMessageBox.warning(
-                self,
-                "Cannot Close Account",
-                f"Account has an active balance of ${acc.balance:,.2f} {acc.currency}.\n\n"
-                f"Per banking regulations and domain invariants, the remaining balance must be "
-                f"withdrawn or transferred before this account can be deactivated.",
-            )
-            return
-
-        # Prompt for confirmation and reason
-        confirm = QMessageBox.question(
-            self,
-            "Confirm Account Closure",
-            f"Are you sure you want to permanently close account {acc.account_number} ({acc.holder_name})?\n\n"
-            f"This action will prevent future transactions.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-
-        if confirm == QMessageBox.StandardButton.Yes:
-            self.vm.close_account(reason="Customer requested closure")
+        dialog = AccountCloseDialog(self.vm.account, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            reason = dialog.get_closure_reason()
+            self.vm.close_account(reason=reason)
 
     def _on_account_closed(self, closed_dto: AccountDTO) -> None:
         self._render_account(closed_dto)

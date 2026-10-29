@@ -403,7 +403,7 @@
   - Requires explicit confirmation dialog with warning.
   - On confirmation: Marks `is_active = False`, records audit log entry, updates UI status badges.
 - **Required Tests**: Non-zero balance rejection test, closure confirmation test, status update test.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Replaces legacy `getCloseAccount()` which allowed closing accounts without checking balance.
 
 ---
