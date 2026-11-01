@@ -7,10 +7,10 @@
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 0 | 0 | 0 | 4 |
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
-| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 3 | 0 | 0 | 5 |
+| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 2 | 0 | 0 | 6 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **14** | **0** | **0** | **29** |
+| **Total** | | **43** | **13** | **0** | **0** | **30** |
 
 ---
 
@@ -568,8 +568,8 @@
   - Selecting an event displays JSON diff inspector showing changed fields.
   - Filterable by date range and event category.
 - **Required Tests**: Audit table loading test, diff inspector display test.
-- **Status**: Planned
-- **Notes**: Compliance feature.
+- **Status**: Completed
+- **Notes**: Compliance feature. Implemented `AuditLogView` with category filters, entity search, date range pickers, asynchronous pagination, and interactive JSON state diff inspector. Connected to MainWindow sidebar and view stack. 6/6 UI tests passing.
 
 ---
 
