@@ -21,6 +21,8 @@ class StatementViewModel(QObject):
     account_found = Signal(object)  # AccountDTO
     account_lookup_failed = Signal(str)
     statement_loaded = Signal(object)  # AccountStatementDTO
+    statement_exported = Signal(str)  # Exported file path
+    export_failed = Signal(str)  # Error message
     loading_changed = Signal(bool)
     error_occurred = Signal(str)
     filter_preset_changed = Signal(str, object, object)  # (preset_name, start_date, end_date)
@@ -174,6 +176,62 @@ class StatementViewModel(QObject):
 
         self.task_runner.run_async(
             _do_generate,
+            on_result=_on_success,
+            on_error=_on_error,
+            on_finished=_on_finished,
+        )
+
+    def export_statement_csv(
+        self,
+        file_path: str,
+        *,
+        include_summary: bool = True,
+        sanitize_formulas: bool = True,
+    ) -> None:
+        """Export active statement to CSV asynchronously."""
+        if not self.current_statement:
+            self.export_failed.emit("No active statement loaded to export.")
+            return
+
+        if not self.task_runner:
+            try:
+                from novabank.application.services.export_service import ExportService
+
+                result = ExportService.export_statement_to_csv(
+                    self.current_statement,
+                    file_path,
+                    include_summary=include_summary,
+                    sanitize_formulas=sanitize_formulas,
+                )
+                self.statement_exported.emit(result)
+            except Exception as exc:
+                self.export_failed.emit(str(exc))
+            return
+
+        self._set_loading(True)
+        stmt = self.current_statement
+
+        def _do_export():
+            from novabank.application.services.export_service import ExportService
+
+            return ExportService.export_statement_to_csv(
+                stmt,
+                file_path,
+                include_summary=include_summary,
+                sanitize_formulas=sanitize_formulas,
+            )
+
+        def _on_success(res_path: str):
+            self.statement_exported.emit(res_path)
+
+        def _on_error(exc: Exception, tb: str):
+            self.export_failed.emit(str(exc))
+
+        def _on_finished():
+            self._set_loading(False)
+
+        self.task_runner.run_async(
+            _do_export,
             on_result=_on_success,
             on_error=_on_error,
             on_finished=_on_finished,

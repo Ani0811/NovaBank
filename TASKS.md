@@ -7,10 +7,10 @@
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 0 | 0 | 0 | 4 |
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
-| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 6 | 0 | 0 | 2 |
+| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 5 | 0 | 0 | 3 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **17** | **0** | **0** | **26** |
+| **Total** | | **43** | **16** | **0** | **0** | **27** |
 
 ---
 
@@ -514,8 +514,8 @@
   - File save dialog allows user to select destination file on Windows filesystem.
   - Export runs asynchronously on worker thread without GUI lag.
 - **Required Tests**: CSV formatting test, special characters escaping test, empty statement export test.
-- **Status**: Planned
-- **Notes**: New capability.
+- **Status**: Completed
+- **Notes**: New capability. Implemented `ExportService` with RFC-4180 formatting, formula injection defense, async export in `StatementViewModel`, file save dialog and notification in `StatementView`. All 8 unit tests + 3 UI tests passing.
 
 ---
 

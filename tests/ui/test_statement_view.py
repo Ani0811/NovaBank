@@ -218,3 +218,101 @@ def test_statement_view_non_existent_account(qtbot, banking_service) -> None:
     assert "does not exist" in view.account_error.text()
     assert view.table.rowCount() == 0
     assert view.reconciliation_badge.isVisible() is False
+
+
+def test_statement_view_export_csv_button_lifecycle(qtbot, banking_service) -> None:
+    """Verify export button is enabled only when a valid statement is loaded."""
+    task_runner = TaskRunner()
+    res = banking_service.open_account(
+        holder_name="Clark Kent",
+        dob=date(1988, 6, 18),
+        address_line="344 Clinton St",
+        city="Metropolis",
+        state="NY",
+        country="USA",
+        phone_number="5551239876",
+        initial_deposit=Decimal("500.00"),
+    )
+    acc_num = res.account.account_number
+
+    view = StatementView(banking_service=banking_service, task_runner=task_runner)
+    qtbot.addWidget(view)
+    view.show()
+
+    # Initial state: button is disabled
+    assert view.btn_export_csv.isEnabled() is False
+
+    # Load account statement
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000):
+        view.account_edit.setText(acc_num)
+
+    # Now enabled
+    assert view.btn_export_csv.isEnabled() is True
+
+    # Failed lookup disables button
+    with qtbot.waitSignal(view.vm.account_lookup_failed, timeout=5000):
+        view.account_edit.setText("000000000000")
+
+    assert view.btn_export_csv.isEnabled() is False
+
+
+def test_statement_view_export_csv_execution(qtbot, banking_service, tmp_path, monkeypatch) -> None:
+    """Verify clicking export CSV invokes file dialog and produces valid CSV file on disk."""
+    task_runner = TaskRunner()
+    res = banking_service.open_account(
+        holder_name="Bruce Wayne",
+        dob=date(1980, 2, 19),
+        address_line="1007 Mountain Drive",
+        city="Gotham",
+        state="NJ",
+        country="USA",
+        phone_number="5559998888",
+        initial_deposit=Decimal("10000.00"),
+    )
+    acc_num = res.account.account_number
+    banking_service.withdraw(acc_num, Decimal("1500.00"), description="Batmobile repair")
+
+    view = StatementView(banking_service=banking_service, task_runner=task_runner)
+    qtbot.addWidget(view)
+    view.show()
+
+    view.btn_all_time.click()
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000):
+        view.account_edit.setText(acc_num)
+
+    target_csv = tmp_path / "bruce_statement.csv"
+
+    # Mock QFileDialog.getSaveFileName to return target_csv without opening native file dialog
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(target_csv), "CSV Files (*.csv)"),
+    )
+    # Mock QMessageBox.information to prevent blocking modal
+    monkeypatch.setattr(QMessageBox, "information", lambda *args, **kwargs: None)
+
+    with qtbot.waitSignal(view.vm.statement_exported, timeout=5000) as blocker:
+        view.btn_export_csv.click()
+
+    assert blocker.args[0] == str(target_csv.resolve())
+    assert target_csv.exists()
+
+    content = target_csv.read_text(encoding="utf-8")
+    assert "NovaBank Official Account Statement" in content
+    assert "Bruce Wayne" in content
+    assert "Batmobile repair" in content
+    assert "10000.00" in content
+    assert "8500.00" in content
+
+
+def test_statement_viewmodel_export_csv_without_loaded_statement() -> None:
+    """Verify export failure signal when no statement is loaded."""
+    vm = StatementViewModel()
+    failed_msgs: list[str] = []
+    vm.export_failed.connect(lambda msg: failed_msgs.append(msg))
+
+    vm.export_statement_csv("/path/dummy.csv")
+    assert len(failed_msgs) == 1
+    assert "No active statement loaded" in failed_msgs[0]

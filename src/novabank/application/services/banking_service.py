@@ -6,7 +6,8 @@ import threading
 import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Optional, TextIO, Union
 
 if TYPE_CHECKING:
     from novabank.application.dto.statement_dto import AccountStatementDTO
@@ -656,4 +657,24 @@ class BankingService:
             account_number=account_number,
             start_date=start_date,
             end_date=end_date,
+        )
+
+    def export_statement_csv(
+        self,
+        statement: AccountStatementDTO,
+        destination: Optional[Union[str, Path, TextIO]] = None,
+        *,
+        include_summary: bool = True,
+        encoding: str = "utf-8",
+        sanitize_formulas: bool = True,
+    ) -> str:
+        """Export an account statement to RFC-4180 compliant CSV."""
+        from novabank.application.services.export_service import ExportService
+
+        return ExportService.export_statement_to_csv(
+            statement=statement,
+            destination=destination,
+            include_summary=include_summary,
+            encoding=encoding,
+            sanitize_formulas=sanitize_formulas,
         )
