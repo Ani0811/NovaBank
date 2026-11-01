@@ -138,8 +138,7 @@ def test_account_list_view_population(qtbot, banking_service_with_accounts) -> N
     )
     qtbot.addWidget(view)
 
-    with qtbot.waitSignal(view.vm.accounts_loaded, timeout=3000):
-        view.vm.load_data()
+    qtbot.waitUntil(lambda: view.table.rowCount() == 3, timeout=3000)
 
     assert view.table.rowCount() == 3
     assert "3 accounts" in view.total_badge.text()

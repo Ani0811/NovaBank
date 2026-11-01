@@ -4,13 +4,13 @@
 
 | Phase | Priority | Total Tasks | Planned | In Progress | Blocked | Done |
 |---|---|---|---|---|---|---|
-| **Phase 0: Baseline & Preservation** | P0 | 4 | 1 | 0 | 0 | 3 |
-| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 7 | 0 | 0 | 4 |
-| **Phase 2: PySide6 Desktop Application** | P2 | 9 | 9 | 0 | 0 | 0 |
-| **Phase 3: Statements, Audit & Operations** | P3 | 8 | 8 | 0 | 0 | 0 |
+| **Phase 0: Baseline & Preservation** | P0 | 4 | 0 | 0 | 0 | 4 |
+| **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
+| **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
+| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 6 | 0 | 0 | 2 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **36** | **0** | **0** | **7** |
+| **Total** | | **43** | **17** | **0** | **0** | **26** |
 
 ---
 
@@ -497,8 +497,8 @@
   - Table columns: Date & Time, Reference ID, Type, Description, Debit, Credit, Running Balance.
   - Summary cards at the top show Opening Balance, Total Inflow, Total Outflow, and Ending Balance.
 - **Required Tests**: Date filter change test, summary card update test.
-- **Status**: Planned
-- **Notes**: Replaces console statement printout.
+- **Status**: Completed
+- **Notes**: Replaces console statement printout. Implemented full interactive UI, presets, async worker execution, KPI cards, and reconciliation verification badge.
 
 ---
 

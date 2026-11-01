@@ -51,7 +51,7 @@ class Worker(QRunnable):
         self.pass_progress = pass_progress
         self.signals = WorkerSignals()
         self._is_cancelled = False
-        self.setAutoDelete(True)
+        self.setAutoDelete(False)
 
     def cancel(self) -> None:
         """Mark task as cancelled.
