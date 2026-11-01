@@ -26,6 +26,7 @@ class Sidebar(QFrame):
         ("open_account", "Open Account", "➕"),
         ("transactions", "Transactions", "💳"),
         ("statements", "Statements", "📄"),
+        ("audit_logs", "Audit Trail", "🛡️"),
         ("ai_assistant", "AI Assistant", "🤖"),
         ("settings", "Settings", "⚙️"),
     ]

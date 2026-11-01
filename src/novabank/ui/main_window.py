@@ -19,6 +19,7 @@ from novabank.ui.components.sidebar import Sidebar
 from novabank.ui.components.status_bar import NovaStatusBar
 from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
+from novabank.ui.views.audit_log_view import AuditLogView
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.views.statement_view import StatementView
@@ -54,6 +55,10 @@ class MainWindow(QMainWindow):
             "Account Statements",
             "Generate and export official bank statements and reports",
         ),
+        "audit_logs": (
+            "Audit Trail & Compliance",
+            "Immutable security log and state change history",
+        ),
         "ledger": (
             "Ledger & Audit Trail",
             "Immutable financial transaction records and audit event history",
@@ -85,6 +90,7 @@ class MainWindow(QMainWindow):
         self.withdrawal_view: Optional[WithdrawalView] = None
         self.transfer_view: Optional[TransferView] = None
         self.statement_view: Optional[StatementView] = None
+        self.audit_log_view: Optional[AuditLogView] = None
 
         self.setWindowTitle("NovaBank - Enterprise Banking System")
         self.setMinimumSize(1024, 680)
@@ -180,6 +186,20 @@ class MainWindow(QMainWindow):
                     parent=self,
                 )
                 self.statement_view = page
+            elif view_key in ("audit_logs", "ledger"):
+                from novabank.application.services.audit_service import AuditService
+
+                audit_srv = (
+                    AuditService(self.banking_service._session_factory)
+                    if self.banking_service
+                    else None
+                )
+                page = AuditLogView(
+                    audit_service=audit_srv,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.audit_log_view = page
             else:
                 page = self._create_placeholder_page(view_key, title, desc)
             idx = self.view_stack.addWidget(page)

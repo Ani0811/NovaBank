@@ -55,6 +55,14 @@ def test_sidebar_navigation_switch(qtbot):
     assert window.current_view_key == "ai_assistant"
     assert window.header_title.text() == "AI Banking Assistant"
 
+    # Click on 'Audit Trail' button
+    audit_btn = window.sidebar._buttons["audit_logs"]
+    qtbot.mouseClick(audit_btn, Qt.MouseButton.LeftButton)
+
+    assert window.current_view_key == "audit_logs"
+    assert "Audit Trail" in window.header_title.text()
+    assert window.audit_log_view is not None
+
 
 def test_programmatic_navigation(qtbot):
     """Verify navigate_to method programmatic routing."""
