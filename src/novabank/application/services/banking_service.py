@@ -71,6 +71,10 @@ class BankingService:
         """Register an event listener/subscriber callback."""
         self._listeners.append(listener)
 
+    def register_listener(self, listener: Callable[[Any], None]) -> None:
+        """Alias for subscribe to register lifecycle event listeners."""
+        self.subscribe(listener)
+
     def _emit(self, event: Any) -> None:
         """Publish event to all registered listeners."""
         for listener in self._listeners:

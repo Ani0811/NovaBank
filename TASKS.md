@@ -7,10 +7,10 @@
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 0 | 0 | 0 | 4 |
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
-| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 4 | 0 | 0 | 4 |
+| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 3 | 0 | 0 | 5 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **15** | **0** | **0** | **28** |
+| **Total** | | **43** | **14** | **0** | **0** | **29** |
 
 ---
 
@@ -543,13 +543,15 @@
 - **Affected Files/Modules**:
   - `src/novabank/application/services/audit_service.py`
   - `src/novabank/infrastructure/repositories/sql_audit_repository.py`
+  - `src/novabank/domain/repositories/audit_repository.py`
+  - `src/novabank/application/dto/audit_dto.py`
   - `tests/application/test_audit_service.py`
 - **Acceptance Criteria**:
   - Records: Timestamp, Actor, Event Type (`ACCOUNT_CREATED`, `ACCOUNT_UPDATED`, `ACCOUNT_CLOSED`, `DEPOSIT`, `WITHDRAWAL`, `TRANSFER`), Entity ID, and JSON payload containing before/after state diff.
   - Audit records are immutable; no update/delete methods exist.
 - **Required Tests**: Audit event recording test, payload serialization test.
-- **Status**: Planned
-- **Notes**: Vital security requirement for portfolio bank system.
+- **Status**: Completed
+- **Notes**: Vital security requirement for portfolio bank system. Implemented `AuditService`, `SQLAuditRepository`, `AuditEventDTO`, clean JSON serialization, event listener dispatcher hooks, and query methods with filtering and pagination. All 7 unit tests passing.
 
 ---
 
