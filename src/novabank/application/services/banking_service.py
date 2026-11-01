@@ -6,7 +6,10 @@ import threading
 import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+
+if TYPE_CHECKING:
+    from novabank.application.dto.statement_dto import AccountStatementDTO
 
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -638,3 +641,19 @@ class BankingService:
             # 5. Emit event after transaction commits successfully
             self._emit(event)
             return result_dto
+
+    def get_statement(
+        self,
+        account_number: Union[AccountNumber, str],
+        start_date: Optional[Union[date, datetime]] = None,
+        end_date: Optional[Union[date, datetime]] = None,
+    ) -> AccountStatementDTO:
+        """Generate historical statement for the specified account with full reconciliation."""
+        from novabank.application.services.statement_service import StatementService
+
+        service = StatementService(self._session_factory)
+        return service.generate_statement(
+            account_number=account_number,
+            start_date=start_date,
+            end_date=end_date,
+        )

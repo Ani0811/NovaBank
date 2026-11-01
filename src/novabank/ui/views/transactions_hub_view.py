@@ -69,4 +69,3 @@ class TransactionsHubView(QWidget):
         self.tab_widget.addTab(self.transfer_view, "Fund Transfer")
 
         layout.addWidget(self.tab_widget)
-

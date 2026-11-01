@@ -479,7 +479,7 @@
   - Calculates opening balance prior to start date, lists all transactions in period, calculates total credits, total debits, and closing balance.
   - Opening Balance + Credits - Debits == Closing Balance mathematically guaranteed.
 - **Required Tests**: Statement generation test with zero transactions, multiple transactions, boundary dates.
-- **Status**: Planned
+- **Status**: Completed
 - **Notes**: Modernizes legacy `getAccBalance()`.
 
 ---

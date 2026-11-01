@@ -32,11 +32,20 @@ class TransactionRepositoryInterface(ABC):
         account_number: Union[AccountNumber, str],
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        limit: int = 50,
+        limit: Optional[int] = 50,
         offset: int = 0,
         descending: bool = True,
     ) -> list[Transaction]:
         """Fetch paginated transactions for an account, optionally filtered by date range."""
+        pass
+
+    @abstractmethod
+    def get_last_transaction_before(
+        self,
+        account_number: Union[AccountNumber, str],
+        before_date: datetime,
+    ) -> Optional[Transaction]:
+        """Fetch the most recent transaction strictly before the given date."""
         pass
 
     @abstractmethod

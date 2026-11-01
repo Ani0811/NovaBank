@@ -70,7 +70,7 @@ class SQLTransactionRepository(TransactionRepositoryInterface):
         account_number: Union[AccountNumber, str],
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        limit: int = 50,
+        limit: Optional[int] = 50,
         offset: int = 0,
         descending: bool = True,
     ) -> list[Transaction]:
@@ -93,9 +93,35 @@ class SQLTransactionRepository(TransactionRepositoryInterface):
                 TransactionModel.created_at.asc(), TransactionModel.transaction_id.asc()
             )
 
-        stmt = stmt.offset(max(0, offset)).limit(max(1, limit))
+        if offset > 0:
+            stmt = stmt.offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(max(1, limit))
+
         models = self._session.execute(stmt).scalars().all()
         return [m.to_entity() for m in models]
+
+    def get_last_transaction_before(
+        self,
+        account_number: Union[AccountNumber, str],
+        before_date: datetime,
+    ) -> Optional[Transaction]:
+        """Fetch the most recent transaction strictly before the given date."""
+        acc_num = self._normalize_account_number(account_number)
+        stmt = (
+            select(TransactionModel)
+            .where(
+                TransactionModel.account_number == acc_num,
+                TransactionModel.created_at < before_date,
+            )
+            .order_by(
+                TransactionModel.created_at.desc(),
+                TransactionModel.transaction_id.desc(),
+            )
+            .limit(1)
+        )
+        model = self._session.execute(stmt).scalar_one_or_none()
+        return model.to_entity() if model is not None else None
 
     def count_by_account(
         self,
