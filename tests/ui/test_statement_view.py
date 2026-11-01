@@ -316,3 +316,49 @@ def test_statement_viewmodel_export_csv_without_loaded_statement() -> None:
     vm.export_statement_csv("/path/dummy.csv")
     assert len(failed_msgs) == 1
     assert "No active statement loaded" in failed_msgs[0]
+
+
+def test_statement_view_export_pdf_execution(qtbot, banking_service, tmp_path, monkeypatch) -> None:
+    """Verify clicking export PDF opens save dialog and writes valid PDF document."""
+    task_runner = TaskRunner()
+    res = banking_service.open_account(
+        holder_name="Arthur Curry",
+        dob=date(1986, 1, 29),
+        address_line="Amnesty Bay Lighthouse",
+        city="Amnesty Bay",
+        state="ME",
+        country="USA",
+        phone_number="5557778899",
+        initial_deposit=Decimal("7500.00"),
+    )
+    acc_num = res.account.account_number
+
+    view = StatementView(banking_service=banking_service, task_runner=task_runner)
+    qtbot.addWidget(view)
+    view.show()
+
+    # Initial state: PDF button disabled
+    assert view.btn_export_pdf.isEnabled() is False
+
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000):
+        view.account_edit.setText(acc_num)
+
+    assert view.btn_export_pdf.isEnabled() is True
+
+    target_pdf = tmp_path / "arthur_statement.pdf"
+
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(target_pdf), "PDF Documents (*.pdf)"),
+    )
+    monkeypatch.setattr(QMessageBox, "information", lambda *args, **kwargs: None)
+
+    with qtbot.waitSignal(view.vm.statement_exported, timeout=5000) as blocker:
+        view.btn_export_pdf.click()
+
+    assert blocker.args[0] == str(target_pdf.resolve())
+    assert target_pdf.exists()
+    assert target_pdf.read_bytes().startswith(b"%PDF-")

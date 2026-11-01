@@ -678,3 +678,19 @@ class BankingService:
             encoding=encoding,
             sanitize_formulas=sanitize_formulas,
         )
+
+    def export_statement_pdf(
+        self,
+        statement: AccountStatementDTO,
+        destination_path: Optional[Union[str, Path]] = None,
+        *,
+        bank_name: str = "NovaBank National Banking & Trust",
+    ) -> Union[str, bytes]:
+        """Generate official PDF statement using StatementPdfGenerator."""
+        from novabank.infrastructure.reporting.pdf_generator import StatementPdfGenerator
+
+        return StatementPdfGenerator.generate_statement_pdf(
+            statement=statement,
+            destination_path=destination_path,
+            bank_name=bank_name,
+        )

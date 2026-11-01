@@ -237,6 +237,63 @@ class StatementViewModel(QObject):
             on_finished=_on_finished,
         )
 
+    def export_statement_pdf(
+        self,
+        file_path: str,
+        *,
+        bank_name: str = "NovaBank National Banking & Trust",
+    ) -> None:
+        """Export active statement to professional PDF asynchronously."""
+        if not self.current_statement:
+            self.export_failed.emit("No active statement loaded to export.")
+            return
+
+        if not self.task_runner:
+            try:
+                from novabank.infrastructure.reporting.pdf_generator import (
+                    StatementPdfGenerator,
+                )
+
+                result = StatementPdfGenerator.generate_statement_pdf(
+                    self.current_statement,
+                    file_path,
+                    bank_name=bank_name,
+                )
+                self.statement_exported.emit(str(result))
+            except Exception as exc:
+                self.export_failed.emit(str(exc))
+            return
+
+        self._set_loading(True)
+        stmt = self.current_statement
+
+        def _do_export_pdf():
+            from novabank.infrastructure.reporting.pdf_generator import (
+                StatementPdfGenerator,
+            )
+
+            return StatementPdfGenerator.generate_statement_pdf(
+                stmt,
+                file_path,
+                bank_name=bank_name,
+            )
+
+        def _on_success(res_path):
+            self.statement_exported.emit(str(res_path))
+
+        def _on_error(exc: Exception, tb: str):
+            self.export_failed.emit(str(exc))
+
+        def _on_finished():
+            self._set_loading(False)
+
+        self.task_runner.run_async(
+            _do_export_pdf,
+            on_result=_on_success,
+            on_error=_on_error,
+            on_finished=_on_finished,
+        )
+
     def _set_loading(self, is_loading: bool) -> None:
         if self._is_loading != is_loading:
             self._is_loading = is_loading

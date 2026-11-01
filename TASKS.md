@@ -7,10 +7,10 @@
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 0 | 0 | 0 | 4 |
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
-| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 5 | 0 | 0 | 3 |
+| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 4 | 0 | 0 | 4 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **16** | **0** | **0** | **27** |
+| **Total** | | **43** | **15** | **0** | **0** | **28** |
 
 ---
 
@@ -531,8 +531,8 @@
   - Includes bank header, statement period, customer summary, transaction table, and closing reconciliation.
   - Runs asynchronously on worker thread.
 - **Required Tests**: PDF generation test asserting valid PDF byte header and page count > 0.
-- **Status**: Planned
-- **Notes**: New capability.
+- **Status**: Completed
+- **Notes**: New capability. Implemented `StatementPdfGenerator` using PySide6 `QTextDocument` and `QPdfWriter`, generating official certified bank statements with FDIC branding, customer summary, financial KPI strip, HTML injection protection, and transaction ledger. Integrated async export in `StatementViewModel` and `StatementView`. All 6 generator tests + UI tests passing.
 
 ---
 

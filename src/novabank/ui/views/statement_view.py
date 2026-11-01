@@ -101,6 +101,16 @@ class StatementView(QWidget):
         self.btn_export_csv.clicked.connect(self._on_export_csv_clicked)
         header_layout.addWidget(self.btn_export_csv)
 
+        self.btn_export_pdf = QPushButton("⬇ Export PDF")
+        self.btn_export_pdf.setEnabled(False)
+        self.btn_export_pdf.setStyleSheet(
+            "QPushButton { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 6px 14px; color: #f8fafc; font-weight: 500; font-size: 13px; }"
+            "QPushButton:hover:enabled { background-color: #1e293b; border-color: #38bdf8; }"
+            "QPushButton:disabled { background-color: #1e293b; color: #64748b; border-color: #334155; }"
+        )
+        self.btn_export_pdf.clicked.connect(self._on_export_pdf_clicked)
+        header_layout.addWidget(self.btn_export_pdf)
+
         main_layout.addLayout(header_layout)
 
         # 2. Account Lookup & Toolbar Card
@@ -410,6 +420,7 @@ class StatementView(QWidget):
         self.account_error.setVisible(True)
         self.reconciliation_badge.setVisible(False)
         self.btn_export_csv.setEnabled(False)
+        self.btn_export_pdf.setEnabled(False)
         self.table.setRowCount(0)
         self._update_kpi_cards(
             Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), "USD"
@@ -426,6 +437,7 @@ class StatementView(QWidget):
     def _on_statement_loaded(self, statement: AccountStatementDTO) -> None:
         self.reconciliation_badge.setVisible(statement.is_reconciled())
         self.btn_export_csv.setEnabled(True)
+        self.btn_export_pdf.setEnabled(True)
 
         # Update KPI Cards
         self._update_kpi_cards(
@@ -464,6 +476,24 @@ class StatementView(QWidget):
         )
         if file_path:
             self.vm.export_statement_csv(file_path)
+
+    def _on_export_pdf_clicked(self) -> None:
+        if not self.vm.current_statement:
+            return
+
+        stmt = self.vm.current_statement
+        start_str = stmt.start_date.strftime("%Y%m%d") if stmt.start_date else "INCEPTION"
+        end_str = stmt.end_date.strftime("%Y%m%d")
+        default_filename = f"NovaBank_Statement_{stmt.account_number}_{start_str}_{end_str}.pdf"
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Statement to PDF",
+            default_filename,
+            "PDF Documents (*.pdf);;All Files (*)",
+        )
+        if file_path:
+            self.vm.export_statement_pdf(file_path)
 
     def _on_statement_exported(self, file_path: str) -> None:
         QMessageBox.information(
