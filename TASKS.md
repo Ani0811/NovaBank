@@ -8,9 +8,9 @@
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
-| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
+| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 4 | 0 | 0 | 2 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **11** | **0** | **0** | **32** |
+| **Total** | | **43** | **9** | **0** | **0** | **34** |
 
 ---
 
@@ -623,8 +623,8 @@
   - **Fallback Behavior**: If LM Studio is offline or connection fails, immediately catches `AIConnectionError`, sets system state to `AI_OFFLINE`, and returns graceful offline response without throwing unhandled exceptions.
   - **Prohibited Actions**: Network calls outside `127.0.0.1` / `localhost` are strictly blocked.
 - **Required Tests**: Health check test, successful completion mock, connection timeout mock, server error fallback test.
-- **Status**: Planned
-- **Notes**: Core local AI integration layer.
+- **Status**: Completed
+- **Notes**: Core local AI integration layer. Implemented `LMStudioClient` with strict loopback trust boundary enforcement, health check probing, timeouts, and fallback handling. 8/8 unit tests passing.
 
 ---
 
@@ -640,8 +640,8 @@
   - **Permitted Inputs**: Raw domain entity or statement data.
   - **Prohibited Actions**: Passing unmasked customer names, phone numbers, or addresses to the AI client is blocked by automated assertion.
 - **Required Tests**: Unit tests asserting complete removal of PII tokens from prompt contexts.
-- **Status**: Planned
-- **Notes**: Guarantees customer privacy compliance.
+- **Status**: Completed
+- **Notes**: Guarantees customer privacy compliance. Implemented `PIISanitizer` with regex scrubbing, known entity token masking, DTO sanitizers, and pre-prompt leak assertion. 6/6 unit tests passing.
 
 ---
 
