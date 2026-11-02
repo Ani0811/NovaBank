@@ -8,9 +8,9 @@
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
-| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 3 | 0 | 0 | 3 |
+| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 2 | 0 | 0 | 4 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **8** | **0** | **0** | **35** |
+| **Total** | | **43** | **7** | **0** | **0** | **36** |
 
 ---
 
@@ -677,8 +677,8 @@
   - **Fallback Behavior**: If AI is offline, provides deterministic template summary ("For the period X to Y, total deposits were $A and total withdrawals were $B.").
   - **Prohibited Actions**: AI cannot offer investment advice or speculate on financial health.
 - **Required Tests**: Narrative generation test, offline template fallback test, numerical consistency verification.
-- **Status**: Planned
-- **Notes**: Enhances customer statements.
+- **Status**: Completed
+- **Notes**: Enhances customer statements. Implemented `AISummaryService` with deterministic template summary generator, PII masking, local LLM integration, word limit (< 300 words) enforcement, investment advice prohibition, and strict numerical consistency validation against statement figures. 8/8 unit tests passing.
 
 ---
 
