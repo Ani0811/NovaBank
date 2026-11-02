@@ -8,9 +8,9 @@
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
-| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 1 | 0 | 0 | 5 |
+| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 0 | 0 | 0 | 6 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **6** | **0** | **0** | **37** |
+| **Total** | | **43** | **5** | **0** | **0** | **38** |
 
 ---
 
@@ -713,8 +713,8 @@
   - Quick actions: "Summarize Current Statement", "Find Recent Large Expenses", "Explain Active Flags".
   - Runs queries asynchronously via `QThreadPool`; streaming response updates text smoothly without UI stutter.
 - **Required Tests**: UI connection indicator test, quick action dispatch test, async response handling test.
-- **Status**: Planned
-- **Notes**: Clean UI integration of Phase 4 AI.
+- **Status**: Completed
+- **Notes**: Clean UI integration of Phase 4 AI. Implemented `AIAssistantViewModel` and `AIAssistantPanel` with real-time LM Studio status badge, rich chat history with markdown/HTML rendering, quick action dispatchers (Statement Summary, Large Expenses, Security Flag Explanations), async execution via `TaskRunner`, and embedded directly into `MainWindow` navigation stack. 9/9 UI unit tests passing.
 
 ---
 

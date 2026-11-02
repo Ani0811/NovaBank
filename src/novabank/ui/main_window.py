@@ -19,6 +19,7 @@ from novabank.ui.components.sidebar import Sidebar
 from novabank.ui.components.status_bar import NovaStatusBar
 from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
+from novabank.ui.views.ai_assistant_panel import AIAssistantPanel
 from novabank.ui.views.audit_log_view import AuditLogView
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
@@ -91,6 +92,7 @@ class MainWindow(QMainWindow):
         self.transfer_view: Optional[TransferView] = None
         self.statement_view: Optional[StatementView] = None
         self.audit_log_view: Optional[AuditLogView] = None
+        self.ai_assistant_panel: Optional[AIAssistantPanel] = None
 
         self.setWindowTitle("NovaBank - Enterprise Banking System")
         self.setMinimumSize(1024, 680)
@@ -200,6 +202,13 @@ class MainWindow(QMainWindow):
                     parent=self,
                 )
                 self.audit_log_view = page
+            elif view_key == "ai_assistant":
+                page = AIAssistantPanel(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.ai_assistant_panel = page
             else:
                 page = self._create_placeholder_page(view_key, title, desc)
             idx = self.view_stack.addWidget(page)
