@@ -8,9 +8,9 @@
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
-| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 4 | 0 | 0 | 2 |
+| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 3 | 0 | 0 | 3 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **9** | **0** | **0** | **34** |
+| **Total** | | **43** | **8** | **0** | **0** | **35** |
 
 ---
 
@@ -659,8 +659,8 @@
   - **Fallback Behavior**: If JSON parsing fails or model hallucinates invalid fields, falls back to standard keyword text search.
   - **Prohibited Actions**: AI is NEVER allowed to generate raw SQL strings or execute database queries directly.
 - **Required Tests**: Schema parsing tests, hallucinated JSON fallback test, valid filter translation test.
-- **Status**: Planned
-- **Notes**: Intelligent query translation with strict safety envelope.
+- **Status**: Completed
+- **Notes**: Intelligent query translation with strict safety envelope. Implemented `StructuredQueryDTO` with matching and filtering methods, and `AISearchService` with PII pre-scrubbing, local LLM invocation, schema validation, SQL rejection, and keyword fallback. 11/11 unit tests passing.
 
 ---
 
