@@ -8,9 +8,9 @@
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
-| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 2 | 0 | 0 | 4 |
+| **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 1 | 0 | 0 | 5 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **7** | **0** | **0** | **36** |
+| **Total** | | **43** | **6** | **0** | **0** | **37** |
 
 ---
 
@@ -695,8 +695,8 @@
   - **Output Validation**: Concise 2-sentence explanation of why the rule was triggered for teller review.
   - **Prohibited Actions**: AI cannot freeze accounts, block transactions, or alter rules. All control remains with the human teller/manager.
 - **Required Tests**: Rule trigger tests, explanation prompt formatting test, offline fallback message test.
-- **Status**: Planned
-- **Notes**: Practical, explainable AI use case for banking operations.
+- **Status**: Completed
+- **Notes**: Practical, explainable AI use case for banking operations. Implemented `ActivityFlagDTO` and `ActivityMonitoringService` with deterministic compliance rules engine (Large Transaction >= $10k, Rapid Withdrawals >= 3 in 24h, Dormant Account Velocity Spike), teller explanation generator via LM Studio, prompt trust boundary assertions, and deterministic fallback messages. 8/8 unit tests passing.
 
 ---
 
