@@ -7,10 +7,10 @@
 | **Phase 0: Baseline & Preservation** | P0 | 4 | 0 | 0 | 0 | 4 |
 | **Phase 1: Domain, Database & Transactions** | P1 | 11 | 0 | 0 | 0 | 11 |
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
-| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 2 | 0 | 0 | 6 |
+| **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 6 | 0 | 0 | 0 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **13** | **0** | **0** | **30** |
+| **Total** | | **43** | **11** | **0** | **0** | **32** |
 
 ---
 
@@ -585,8 +585,8 @@
   - Saves compressed, timestamped `.sql.gz` file into configured backup folder.
   - Verifies exit code and generated file integrity.
 - **Required Tests**: Mocked mysqldump execution test and backup file validation test.
-- **Status**: Planned
-- **Notes**: Operational safety procedure.
+- **Status**: Completed
+- **Notes**: Operational safety procedure. Implemented `BackupManager` with streaming gzip compression, secure `MYSQL_PWD` credential isolation, SHA-256 verification, and error cleanup. 7/7 unit tests passing.
 
 ---
 
@@ -602,8 +602,8 @@
   - Requires user to explicitly type the target database name as confirmation before proceeding.
   - Never executes automatically.
 - **Required Tests**: Restore dry-run test and confirmation validation test.
-- **Status**: Planned
-- **Notes**: Prevents accidental data wipe.
+- **Status**: Completed
+- **Notes**: Prevents accidental data wipe. Implemented `RestoreManager` with preflight header and schema marker inspection, mandatory exact database name confirmation, dry-run simulation mode, and secure streaming restore. 8/8 unit tests passing.
 
 ---
 
