@@ -292,3 +292,4 @@ class AIAssistantPanel(QWidget):
         # Scroll to bottom
         sb = self.chat_display.verticalScrollBar()
         sb.setValue(sb.maximum())
+

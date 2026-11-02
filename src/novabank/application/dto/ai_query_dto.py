@@ -68,3 +68,4 @@ class StructuredQueryDTO:
     ) -> list[StatementEntryDTO]:
         """Filter a list of StatementEntryDTOs against this structured query."""
         return [e for e in entries if self.matches(e)]
+

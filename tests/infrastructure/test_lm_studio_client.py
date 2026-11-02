@@ -171,3 +171,4 @@ def test_chat_completion_with_fallback_graceful_recovery() -> None:
     assert resp.is_fallback is True
     assert resp.model == "fallback"
     assert client.status == AIStatus.OFFLINE
+

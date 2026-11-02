@@ -287,3 +287,4 @@ def test_structured_query_dto_filtering() -> None:
     filtered3 = q3.filter_entries(entries)
     assert len(filtered3) == 1
     assert filtered3[0].transaction_ref == "TXN-002"
+

@@ -179,3 +179,4 @@ def test_summarize_statement_pii_scrubbed_in_prompt(sample_statement: AccountSta
     assert "123456789012" not in prompt_sent
     assert "****-****-9012" in prompt_sent
     assert "[Customer-Redacted]" in prompt_sent
+

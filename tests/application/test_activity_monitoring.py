@@ -209,3 +209,4 @@ def test_explain_flag_offline_fallback() -> None:
     result = service.explain_flag(flag)
     assert "$25,000.00" in result
     assert "Currency Transaction Report (CTR)" in result
+

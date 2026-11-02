@@ -203,3 +203,4 @@ class LMStudioClient:
                 is_fallback=True,
                 latency_seconds=0.0,
             )
+

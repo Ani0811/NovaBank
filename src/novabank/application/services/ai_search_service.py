@@ -236,3 +236,4 @@ class AISearchService:
             is_fallback=True,
             explanation=reason,
         )
+

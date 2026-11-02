@@ -32,3 +32,4 @@ class ActivityFlagDTO:
             account_number_masked=self.account_number_masked,
             ai_explanation=explanation,
         )
+

@@ -25,3 +25,4 @@ class AIResponseError(AIError):
 
 class AIPrivacyViolationError(AIError):
     """Raised when unmasked Personally Identifiable Information (PII) is detected in an AI prompt payload."""
+
