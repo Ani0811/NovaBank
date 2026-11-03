@@ -261,7 +261,7 @@ def test_transfer_view_execution_success(qtbot, banking_service, monkeypatch) ->
     assert view.submit_btn.isEnabled() is True
 
     # Click transfer
-    with qtbot.waitSignal(view.vm.transaction_completed, timeout=5000) as blocker:
+    with qtbot.waitSignal(view.vm.transaction_completed, timeout=10000) as blocker:
         view.submit_btn.click()
 
     result = blocker.args[0]

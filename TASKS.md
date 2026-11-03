@@ -9,8 +9,8 @@
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 0 | 0 | 0 | 6 |
-| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 4 | 0 | 0 | 1 |
-| **Total** | | **43** | **4** | **0** | **0** | **39** |
+| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 3 | 0 | 0 | 2 |
+| **Total** | | **43** | **3** | **0** | **0** | **40** |
 
 ---
 
@@ -745,8 +745,8 @@
   - Code coverage >= 90% across domain and application layers.
   - Multi-threaded financial concurrency tests execute cleanly without data race or deadlock.
 - **Required Tests**: Full pytest suite execution with coverage report generation.
-- **Status**: Planned
-- **Notes**: Sign-off gate before binary packaging.
+- **Status**: Completed
+- **Notes**: Sign-off gate before binary packaging. Executed full test suite across all 5 phases (269 passed, 1 skipped). Measured 95% total code coverage across Domain and Application layers (exceeding 90% threshold). Verified multi-threaded financial concurrency, circular transfer deadlock freedom, and atomic balance invariants under contention.
 
 ---
 

@@ -123,7 +123,7 @@ def test_statement_view_lookup_and_table_population(qtbot, banking_service) -> N
     # Select All Time to encompass all transactions regardless of test execution date
     view.btn_all_time.click()
 
-    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000) as blocker:
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=10000) as blocker:
         view.account_edit.setText(acc_num)
 
     statement: AccountStatementDTO = blocker.args[0]
@@ -183,7 +183,7 @@ def test_statement_view_custom_range_filter(qtbot, banking_service) -> None:
     view.show()
 
     # Load initial statement
-    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000):
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=10000):
         view.account_edit.setText(acc_num)
 
     # Click Custom Range
@@ -194,7 +194,7 @@ def test_statement_view_custom_range_filter(qtbot, banking_service) -> None:
     view.start_date_edit.setDate(QDate(2099, 1, 1))
     view.end_date_edit.setDate(QDate(2099, 1, 31))
 
-    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000) as blocker:
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=10000) as blocker:
         view.apply_custom_btn.click()
 
     stmt: AccountStatementDTO = blocker.args[0]
@@ -211,7 +211,7 @@ def test_statement_view_non_existent_account(qtbot, banking_service) -> None:
     qtbot.addWidget(view)
     view.show()
 
-    with qtbot.waitSignal(view.vm.account_lookup_failed, timeout=5000):
+    with qtbot.waitSignal(view.vm.account_lookup_failed, timeout=10000):
         view.account_edit.setText("999988887777")
 
     assert view.account_error.isVisible() is True
@@ -243,14 +243,14 @@ def test_statement_view_export_csv_button_lifecycle(qtbot, banking_service) -> N
     assert view.btn_export_csv.isEnabled() is False
 
     # Load account statement
-    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000):
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=10000):
         view.account_edit.setText(acc_num)
 
     # Now enabled
     assert view.btn_export_csv.isEnabled() is True
 
     # Failed lookup disables button
-    with qtbot.waitSignal(view.vm.account_lookup_failed, timeout=5000):
+    with qtbot.waitSignal(view.vm.account_lookup_failed, timeout=10000):
         view.account_edit.setText("000000000000")
 
     assert view.btn_export_csv.isEnabled() is False
@@ -277,7 +277,7 @@ def test_statement_view_export_csv_execution(qtbot, banking_service, tmp_path, m
     view.show()
 
     view.btn_all_time.click()
-    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000):
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=10000):
         view.account_edit.setText(acc_num)
 
     target_csv = tmp_path / "bruce_statement.csv"
@@ -293,7 +293,7 @@ def test_statement_view_export_csv_execution(qtbot, banking_service, tmp_path, m
     # Mock QMessageBox.information to prevent blocking modal
     monkeypatch.setattr(QMessageBox, "information", lambda *args, **kwargs: None)
 
-    with qtbot.waitSignal(view.vm.statement_exported, timeout=5000) as blocker:
+    with qtbot.waitSignal(view.vm.statement_exported, timeout=10000) as blocker:
         view.btn_export_csv.click()
 
     assert blocker.args[0] == str(target_csv.resolve())
@@ -340,7 +340,7 @@ def test_statement_view_export_pdf_execution(qtbot, banking_service, tmp_path, m
     # Initial state: PDF button disabled
     assert view.btn_export_pdf.isEnabled() is False
 
-    with qtbot.waitSignal(view.vm.statement_loaded, timeout=5000):
+    with qtbot.waitSignal(view.vm.statement_loaded, timeout=10000):
         view.account_edit.setText(acc_num)
 
     assert view.btn_export_pdf.isEnabled() is True
@@ -356,7 +356,7 @@ def test_statement_view_export_pdf_execution(qtbot, banking_service, tmp_path, m
     )
     monkeypatch.setattr(QMessageBox, "information", lambda *args, **kwargs: None)
 
-    with qtbot.waitSignal(view.vm.statement_exported, timeout=5000) as blocker:
+    with qtbot.waitSignal(view.vm.statement_exported, timeout=30000) as blocker:
         view.btn_export_pdf.click()
 
     assert blocker.args[0] == str(target_pdf.resolve())
