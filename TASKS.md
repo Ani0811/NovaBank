@@ -9,8 +9,8 @@
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 0 | 0 | 0 | 6 |
-| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 1 | 0 | 0 | 4 |
-| **Total** | | **43** | **1** | **0** | **0** | **42** |
+| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 0 | 0 | 0 | 5 |
+| **Total** | | **43** | **0** | **0** | **0** | **43** |
 
 ---
 
@@ -798,5 +798,5 @@
   - `DEVELOPER_GUIDE.md` details local development setup, testing, and architecture.
   - `MIGRATION_GUIDE.md` provides step-by-step instructions for safely migrating from legacy console `narDB`.
 - **Required Tests**: Documentation review and markdown linting.
-- **Status**: Planned
-- **Notes**: Portfolio presentation artifact.
+- **Status**: Completed
+- **Notes**: Portfolio presentation artifact. Authored comprehensive documentation suite including root `README.md` (architecture diagram, quick start, test metrics), `docs/DEVELOPER_GUIDE.md` (clean architecture, testing, static security, packaging), `docs/USER_MANUAL.md` (teller operations, cash desk, statements, AI assistant), and `docs/MIGRATION_GUIDE.md` (legacy comparison matrix, schema mapping, credential shredding). Verified with `tests/test_documentation_integrity.py`.
