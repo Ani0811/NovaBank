@@ -97,3 +97,4 @@ Once imported, the password is encrypted natively by the Windows Data Protection
    ```powershell
    python -m novabank.main
    ```
+

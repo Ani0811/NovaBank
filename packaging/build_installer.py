@@ -88,3 +88,4 @@ def compile_installer() -> int:
 
 if __name__ == "__main__":
     sys.exit(compile_installer())
+

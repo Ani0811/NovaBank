@@ -118,3 +118,4 @@ This produces `dist/NovaBank/NovaBank.exe` bundled with all PySide6 DLLs, styles
 python packaging/build_installer.py
 ```
 Compiles `packaging/installer.iss` using Inno Setup 6 into `dist/installer/NovaBank_Setup_v1.0.0.exe`.
+

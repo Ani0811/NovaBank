@@ -34,3 +34,4 @@ def test_readme_links_and_sections() -> None:
     assert "USER_MANUAL.md" in readme
     assert "MIGRATION_GUIDE.md" in readme
     assert "Quick Start Guide" in readme
+

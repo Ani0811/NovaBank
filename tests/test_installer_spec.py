@@ -50,3 +50,4 @@ def test_installer_prerequisites_validator() -> None:
     from build_installer import validate_installer_prerequisites
 
     assert validate_installer_prerequisites() is True
+

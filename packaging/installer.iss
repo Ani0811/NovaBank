@@ -60,3 +60,4 @@ Type: filesandordirs; Name: "{app}\__pycache__"
 
 [Messages]
 BeveledLabel=NovaBank Enterprise Desktop System
+

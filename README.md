@@ -159,3 +159,4 @@ python packaging/build_installer.py
 * [**User Manual**](docs/USER_MANUAL.md): Branch teller workflows, cash desk operations, statements, and AI assistant.
 * [**Migration Guide**](docs/MIGRATION_GUIDE.md): Migrating data and workflows from legacy console `narDB`.
 * [**Engineering Task Backlog**](TASKS.md): Detailed 43-task ledger across all 5 project phases.
+

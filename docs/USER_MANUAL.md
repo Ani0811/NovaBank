@@ -105,3 +105,4 @@ NovaBank features an integrated AI Assistant connected exclusively to a private 
   - 💸 **Find Large Expenses**: Filters notable debits and withdrawals exceeding $100.
   - 🛡️ **Explain Active Flags**: Analyzes ledger patterns for security flags (large transactions $\ge \$10,000$, rapid consecutive withdrawals, or dormant account reactivations) and produces explainable teller guidance without autonomous freezing.
 - **Conversational Search**: Type queries such as *"Show deposits over 5,000 from last month"* to automatically translate natural language into structured ledger filters.
+
