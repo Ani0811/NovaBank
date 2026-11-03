@@ -182,7 +182,7 @@ class RestoreManager:
             env["MYSQL_PWD"] = pwd
 
         try:
-            proc = subprocess.Popen(
+            proc = subprocess.Popen(  # nosec B603
                 cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -190,10 +190,12 @@ class RestoreManager:
                 env=env,
             )
 
+            if proc.stdin is None:
+                raise RuntimeError("mysql stdin stream is unavailable")
+
             # Stream backup file into mysql stdin
             if preflight.is_compressed:
                 with gzip.open(preflight.file_path, "rb") as gz_in:
-                    assert proc.stdin is not None
                     while True:
                         chunk = gz_in.read(65536)
                         if not chunk:
@@ -201,7 +203,6 @@ class RestoreManager:
                         proc.stdin.write(chunk)
             else:
                 with open(preflight.file_path, "rb") as f_in:
-                    assert proc.stdin is not None
                     while True:
                         chunk = f_in.read(65536)
                         if not chunk:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import QObject, Signal
 
@@ -12,7 +12,6 @@ from novabank.application.dto.ai_query_dto import StructuredQueryDTO
 from novabank.application.services.activity_monitoring_service import ActivityMonitoringService
 from novabank.application.services.ai_search_service import AISearchService
 from novabank.application.services.ai_summary_service import AISummaryService
-from novabank.infrastructure.ai.exceptions import AIError
 from novabank.infrastructure.ai.lm_studio_client import LMStudioClient
 
 if TYPE_CHECKING:
@@ -256,7 +255,7 @@ class AIAssistantViewModel(QObject):
                 min_amount=Decimal("100.00"),
                 transaction_type="WITHDRAWAL",
             )
-            matches = [e for e in stmt.entries if e.debit_amount is not None and e.amount >= Decimal("100.00")]
+            matches = [e for e in query.filter_entries(stmt.entries) if e.debit_amount is not None]
 
             if not matches:
                 return f"No large expenses (>= $100.00) found for account `{target_account}`."

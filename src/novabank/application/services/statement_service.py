@@ -153,5 +153,6 @@ class StatementService:
                 entries=tuple(entries),
             )
 
-            assert statement.is_reconciled(), "Statement must satisfy reconciliation formula"
+            if not statement.is_reconciled():
+                raise RuntimeError("Statement must satisfy reconciliation formula: opening + credits - debits == closing")
             return statement

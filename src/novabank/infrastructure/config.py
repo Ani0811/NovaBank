@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import csv
+import logging
 from pathlib import Path
 from typing import Optional
 
 import keyring
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 KEYRING_SERVICE_NAME = "NovaBank"
 
@@ -94,8 +97,8 @@ def save_db_password_to_keyring(
         raise ValueError("Username cannot be empty when storing credential.")
     try:
         keyring.set_password(service, username, password)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to persist password in keyring: %s", exc)
 
 
 def get_db_password_from_keyring(

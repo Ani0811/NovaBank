@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import uuid
 from datetime import date, datetime, timezone
@@ -37,6 +38,8 @@ from novabank.domain.value_objects.money import Money
 from novabank.domain.value_objects.transaction_type import TransactionType
 from novabank.infrastructure.repositories.sql_account_repository import SQLAccountRepository
 from novabank.infrastructure.repositories.sql_transaction_repository import SQLTransactionRepository
+
+logger = logging.getLogger(__name__)
 
 
 class AccountLockManager:
@@ -80,9 +83,9 @@ class BankingService:
         for listener in self._listeners:
             try:
                 listener(event)
-            except Exception:
+            except Exception as exc:
                 # Listener exceptions must not break core business flows
-                pass
+                logger.warning("Event listener %s failed processing event %s: %s", listener, event, exc)
 
     def open_account(
         self,

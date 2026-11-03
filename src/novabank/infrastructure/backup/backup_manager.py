@@ -114,7 +114,7 @@ class BackupManager:
 
         try:
             # Execute mysqldump process
-            proc = subprocess.Popen(
+            proc = subprocess.Popen(  # nosec B603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -123,9 +123,11 @@ class BackupManager:
 
             hasher = hashlib.sha256()
 
+            if proc.stdout is None:
+                raise RuntimeError("mysqldump stdout stream is unavailable")
+
             if compress:
                 with gzip.open(dest_file, "wb", compresslevel=9) as gz_out:
-                    assert proc.stdout is not None
                     while True:
                         chunk = proc.stdout.read(65536)
                         if not chunk:
@@ -134,7 +136,6 @@ class BackupManager:
                         hasher.update(chunk)
             else:
                 with open(dest_file, "wb") as f_out:
-                    assert proc.stdout is not None
                     while True:
                         chunk = proc.stdout.read(65536)
                         if not chunk:

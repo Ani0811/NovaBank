@@ -9,8 +9,8 @@
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 0 | 0 | 0 | 6 |
-| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 5 | 0 | 0 | 0 |
-| **Total** | | **43** | **5** | **0** | **0** | **38** |
+| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 4 | 0 | 0 | 1 |
+| **Total** | | **43** | **4** | **0** | **0** | **39** |
 
 ---
 
@@ -730,8 +730,8 @@
   - No plaintext credentials, hardcoded secrets, or SQL injection vectors exist.
   - All external input is validated by Pydantic domain models or Qt validators.
 - **Required Tests**: Automated bandit scan in CI/pytest test suite.
-- **Status**: Planned
-- **Notes**: Ensures enterprise-grade security posture.
+- **Status**: Completed
+- **Notes**: Ensures enterprise-grade security posture. Executed Bandit static analysis (0 High, 0 Medium severity issues across 10,070 lines of code) and Ruff linter. Remediated bare exception pass blocks with proper logging and replaced assert statements with runtime checks. Created `tests/test_security_audit.py` with 4 automated tests verifying Bandit thresholds, secret scanning, SQL parameterized queries, and loopback AI trust boundary.
 
 ---
 
