@@ -9,8 +9,8 @@
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 0 | 0 | 0 | 6 |
-| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 2 | 0 | 0 | 3 |
-| **Total** | | **43** | **2** | **0** | **0** | **41** |
+| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 1 | 0 | 0 | 4 |
+| **Total** | | **43** | **1** | **0** | **0** | **42** |
 
 ---
 
@@ -779,8 +779,8 @@
   - Creates Start Menu and Desktop shortcuts with proper application icon.
   - Uninstaller removes all installed files cleanly.
 - **Required Tests**: Installation and uninstallation test in a Windows sandbox environment.
-- **Status**: Planned
-- **Notes**: Standard Windows distribution standard.
+- **Status**: Completed
+- **Notes**: Standard Windows distribution standard. Created Inno Setup 6 installer specification `packaging/installer.iss` configuring 64-bit architecture, automatic desktop and start menu shortcuts, uninstallation hooks, and uninstaller icons. Developed `packaging/build_installer.py` automation and verification runner. Verified with 4 unit tests in `tests/test_installer_spec.py`.
 
 ---
 
