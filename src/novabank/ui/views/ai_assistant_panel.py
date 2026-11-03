@@ -9,8 +9,8 @@ Integrates local LM Studio conversational banking intelligence into NovaBank:
 
 from __future__ import annotations
 
-from datetime import datetime
 import html
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import Qt
@@ -20,8 +20,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QScrollArea,
-    QSizePolicy,
     QTextEdit,
     QVBoxLayout,
     QWidget,

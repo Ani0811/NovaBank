@@ -9,8 +9,8 @@
 | **Phase 2: PySide6 Desktop Application** | P2 | 9 | 0 | 0 | 0 | 9 |
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 0 | 0 | 0 | 6 |
-| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 3 | 0 | 0 | 2 |
-| **Total** | | **43** | **3** | **0** | **0** | **40** |
+| **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 2 | 0 | 0 | 3 |
+| **Total** | | **43** | **2** | **0** | **0** | **41** |
 
 ---
 
@@ -762,8 +762,8 @@
   - Application launches cleanly on a clean Windows machine without requiring Python installation.
   - Executable size is optimized and launch time is under 3 seconds.
 - **Required Tests**: Binary smoke test executing help/version command and launching application window.
-- **Status**: Planned
-- **Notes**: Packaging modern Windows desktop application.
+- **Status**: Completed
+- **Notes**: Packaging modern Windows desktop application. Created `src/novabank/main.py` entrypoint with CLI flags (`--version`, `--diagnostics`, `--check-db`, `--demo`), PyInstaller spec `packaging/novabank.spec` with full Qt/SQLAlchemy/keyring bundling, and `packaging/build_exe.py`. Built and smoke-tested `dist/NovaBank/NovaBank.exe` executing in < 1 second. All packaging smoke tests passing.
 
 ---
 

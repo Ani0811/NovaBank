@@ -6,11 +6,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-import pytest
-
 from novabank.application.dto.activity_flag_dto import ActivityFlagDTO
 from novabank.application.services.activity_monitoring_service import (
-    LARGE_TRANSACTION_THRESHOLD,
     ActivityMonitoringService,
 )
 from novabank.domain.entities.transaction import Transaction

@@ -7,11 +7,11 @@ fallback to standard keyword search when AI output fails schema validation.
 
 from __future__ import annotations
 
-from datetime import date
-from decimal import Decimal, InvalidOperation
 import json
 import logging
 import re
+from datetime import date
+from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 
 from novabank.application.dto.ai_query_dto import StructuredQueryDTO

@@ -11,7 +11,7 @@ import pytest
 from novabank.application.dto.ai_query_dto import StructuredQueryDTO
 from novabank.application.dto.statement_dto import StatementEntryDTO
 from novabank.application.services.ai_search_service import AISearchService
-from novabank.infrastructure.ai.exceptions import AIConnectionError, AITimeoutError
+from novabank.infrastructure.ai.exceptions import AIConnectionError
 from novabank.infrastructure.ai.lm_studio_client import LMStudioClient
 
 

@@ -7,10 +7,9 @@ advisory restrictions (no investment advice/speculation), and deterministic temp
 
 from __future__ import annotations
 
-from datetime import datetime
-from decimal import Decimal, InvalidOperation
 import logging
 import re
+from decimal import Decimal, InvalidOperation
 from typing import Optional, Set
 
 from novabank.application.dto.statement_dto import AccountStatementDTO

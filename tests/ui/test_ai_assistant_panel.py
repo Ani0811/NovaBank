@@ -6,14 +6,12 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
 import pytest
+from PySide6.QtWidgets import QApplication
 
 from novabank.application.dto.activity_flag_dto import ActivityFlagDTO
 from novabank.application.dto.statement_dto import AccountStatementDTO, StatementEntryDTO
 from novabank.application.services.banking_service import BankingService
-from novabank.infrastructure.ai.exceptions import AIConnectionError
 from novabank.infrastructure.ai.lm_studio_client import LMStudioClient
 from novabank.ui.viewmodels.ai_assistant_viewmodel import AIAssistantViewModel
 from novabank.ui.views.ai_assistant_panel import AIAssistantPanel
