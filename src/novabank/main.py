@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
+from decimal import Decimal
+import logging
 from pathlib import Path
 import sys
 from typing import Optional
@@ -11,16 +14,23 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import QApplication
 
+from novabank.application.services.audit_service import AuditService
 from novabank.application.services.banking_service import BankingService
 from novabank.infrastructure.config import AppConfig
 from novabank.infrastructure.db.diagnostics import check_database_connectivity
-from novabank.infrastructure.db.session import create_db_engine, create_session_factory
+from novabank.infrastructure.db.models import Base
+from novabank.infrastructure.db.session import (
+    create_db_engine,
+    create_session_factory,
+    init_database,
+)
 from novabank.ui.main_window import MainWindow
 from novabank.ui.workers.task_runner import TaskRunner
 
 APP_NAME = "NovaBank"
 APP_VERSION = "1.0.0"
 ORG_NAME = "NovaBank Enterprise Solutions"
+logger = logging.getLogger(__name__)
 
 
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
@@ -65,6 +75,70 @@ def run_diagnostics(config: AppConfig) -> int:
     return 0 if diag.connection_successful else 1
 
 
+def seed_demo_data(banking_service: BankingService) -> None:
+    """Seed realistic initial data for demonstration mode."""
+    try:
+        acc1 = banking_service.open_account(
+            holder_name="Clark Kent",
+            dob=date(1985, 6, 18),
+            address_line="344 Clinton St, Apt 3B",
+            city="Metropolis",
+            state="NY",
+            country="USA",
+            phone_number="212-555-0199",
+            initial_deposit=Decimal("15000.00"),
+            currency="USD",
+            actor="system_demo",
+        )
+        acc2 = banking_service.open_account(
+            holder_name="Diana Prince",
+            dob=date(1988, 3, 22),
+            address_line="100 Central Pkwy, Suite 4",
+            city="Gateway City",
+            state="CA",
+            country="USA",
+            phone_number="415-555-0142",
+            initial_deposit=Decimal("28500.00"),
+            currency="USD",
+            actor="system_demo",
+        )
+        acc3 = banking_service.open_account(
+            holder_name="Bruce Wayne",
+            dob=date(1982, 5, 27),
+            address_line="1007 Mountain Drive",
+            city="Gotham",
+            state="NJ",
+            country="USA",
+            phone_number="201-555-0188",
+            initial_deposit=Decimal("95000.00"),
+            currency="USD",
+            actor="system_demo",
+        )
+
+        banking_service.deposit(
+            account_number=acc1.account.account_number,
+            amount=Decimal("2500.00"),
+            description="Payroll Direct Deposit - Daily Planet",
+            actor="payroll_system",
+        )
+        banking_service.withdraw(
+            account_number=acc1.account.account_number,
+            amount=Decimal("450.00"),
+            description="ATM Withdrawal - Metropolis Downtown",
+            actor="atm_terminal_4",
+        )
+        banking_service.transfer(
+            source_account_number=acc3.account.account_number,
+            destination_account_number=acc2.account.account_number,
+            amount=Decimal("5000.00"),
+            description="Charity Gala Contribution",
+            actor="wire_transfer",
+        )
+        print("[NovaBank] Demo database initialized with sample accounts and transactions.")
+    except Exception as exc:
+        print(f"[NovaBank] Notice: Demo seeding encountered: {exc}")
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     """Application main entrypoint."""
     args = parse_args(argv)
@@ -95,29 +169,43 @@ def main(argv: Optional[list[str]] = None) -> int:
     app.setFont(font)
 
     # Initialize database engine & session factory
-    if args.demo:
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
-        from novabank.infrastructure.db.models import Base
+    is_demo_mode = args.demo
+    session_factory = None
 
-        engine = create_engine("sqlite:///:memory:", echo=False)
-        Base.metadata.create_all(bind=engine)
-        session_factory = sessionmaker(bind=engine)
-    else:
+    if not is_demo_mode:
         try:
             engine = create_db_engine(config)
+            with engine.connect():
+                pass
+            init_database(engine)
             session_factory = create_session_factory(engine)
-        except Exception:
-            # Fallback to local SQLite in-memory for demo / graceful start
-            from sqlalchemy import create_engine
-            from sqlalchemy.orm import sessionmaker
-            from novabank.infrastructure.db.models import Base
+        except Exception as exc:
+            print(
+                f"[NovaBank] Could not connect to MySQL ({exc}). "
+                f"Falling back to local in-memory demo mode."
+            )
+            is_demo_mode = True
 
-            engine = create_engine("sqlite:///:memory:", echo=False)
-            Base.metadata.create_all(bind=engine)
-            session_factory = sessionmaker(bind=engine)
+    if is_demo_mode or session_factory is None:
+        from sqlalchemy import create_engine
+        from sqlalchemy.pool import StaticPool
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+            echo=False,
+        )
+        Base.metadata.create_all(bind=engine)
+        session_factory = create_session_factory(engine)
 
     banking_service = BankingService(session_factory)
+    audit_service = AuditService(session_factory)
+    banking_service.subscribe(audit_service.handle_event)
+
+    if is_demo_mode:
+        seed_demo_data(banking_service)
+
     task_runner = TaskRunner()
 
     main_win = MainWindow(banking_service=banking_service, task_runner=task_runner)
@@ -128,4 +216,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -25,8 +25,13 @@ def create_db_engine(
         db_url = config.database_url
 
     connect_args = {}
+    engine_kwargs: dict[str, Any] = {}
     if "sqlite" in db_url:
         connect_args["check_same_thread"] = False
+        if ":memory:" in db_url:
+            from sqlalchemy.pool import StaticPool
+
+            engine_kwargs["poolclass"] = StaticPool
     elif "mysql" in db_url:
         connect_args["connect_timeout"] = 5
 
@@ -35,6 +40,7 @@ def create_db_engine(
         echo=echo,
         connect_args=connect_args,
         pool_pre_ping=True,
+        **engine_kwargs,
     )
     return engine
 
