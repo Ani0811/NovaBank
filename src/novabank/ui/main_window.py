@@ -21,6 +21,7 @@ from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
 from novabank.ui.views.ai_assistant_panel import AIAssistantPanel
 from novabank.ui.views.audit_log_view import AuditLogView
+from novabank.ui.views.dashboard_view import DashboardView
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.views.statement_view import StatementView
@@ -83,6 +84,7 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.banking_service = banking_service
         self.task_runner = task_runner or TaskRunner()
+        self.dashboard_view: Optional[DashboardView] = None
         self.open_account_view: Optional[OpenAccountView] = None
         self.account_list_view: Optional[AccountListView] = None
         self.account_detail_view: Optional[AccountDetailView] = None
@@ -150,7 +152,15 @@ class MainWindow(QMainWindow):
 
         # Initialize pages for each navigation route
         for view_key, (title, desc) in self.PAGE_TITLES.items():
-            if view_key == "open_account":
+            if view_key == "dashboard":
+                page = DashboardView(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    navigate_callback=self.navigate_to,
+                    parent=self,
+                )
+                self.dashboard_view = page
+            elif view_key == "open_account":
                 page = OpenAccountView(
                     banking_service=self.banking_service,
                     task_runner=self.task_runner,
@@ -281,3 +291,6 @@ class MainWindow(QMainWindow):
         title, subtitle = self.PAGE_TITLES.get(route_key, ("NovaBank", ""))
         self.header_title.setText(title)
         self.header_subtitle.setText(subtitle)
+
+        if route_key == "dashboard" and self.dashboard_view:
+            self.dashboard_view.load_data()

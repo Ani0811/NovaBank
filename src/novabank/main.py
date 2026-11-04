@@ -165,6 +165,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     app.setOrganizationName(ORG_NAME)
 
     # Set default modern font
+    if sys.platform == "win32":
+        from PySide6.QtGui import QFontDatabase
+
+        for font_file in ("segoeui.ttf", "seguisym.ttf", "seguiemj.ttf"):
+            font_path = Path("C:/Windows/Fonts") / font_file
+            if font_path.exists():
+                QFontDatabase.addApplicationFont(str(font_path))
+
     font = QFont("Segoe UI", 10)
     app.setFont(font)
 

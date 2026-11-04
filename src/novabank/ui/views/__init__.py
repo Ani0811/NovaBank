@@ -5,6 +5,7 @@ from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
 from novabank.ui.views.ai_assistant_panel import AIAssistantPanel
 from novabank.ui.views.audit_log_view import AuditLogView
+from novabank.ui.views.dashboard_view import DashboardView
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.views.statement_view import StatementView
@@ -18,6 +19,7 @@ __all__ = [
     "AccountListView",
     "AIAssistantPanel",
     "AuditLogView",
+    "DashboardView",
     "DepositView",
     "OpenAccountView",
     "StatementView",
