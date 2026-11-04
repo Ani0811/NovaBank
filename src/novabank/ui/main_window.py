@@ -5,11 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QPushButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -17,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from novabank.ui.components.sidebar import Sidebar
 from novabank.ui.components.status_bar import NovaStatusBar
+from novabank.ui.resources.icons import get_icon
 from novabank.ui.views.account_detail_view import AccountDetailView
 from novabank.ui.views.account_list_view import AccountListView
 from novabank.ui.views.ai_assistant_panel import AIAssistantPanel
@@ -24,6 +27,7 @@ from novabank.ui.views.audit_log_view import AuditLogView
 from novabank.ui.views.dashboard_view import DashboardView
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
+from novabank.ui.views.settings_view import SettingsView
 from novabank.ui.views.statement_view import StatementView
 from novabank.ui.views.transactions_hub_view import TransactionsHubView
 from novabank.ui.views.transfer_view import TransferView
@@ -39,7 +43,7 @@ class MainWindow(QMainWindow):
     """Primary desktop application shell with navigation, content views, and status bar."""
 
     PAGE_TITLES: dict[str, tuple[str, str]] = {
-        "dashboard": ("Dashboard", "Financial overview and key performance metrics"),
+        "dashboard": ("Dashboard", "Overview of banking operations and account activity"),
         "accounts": ("Accounts Management", "Customer account administration and profile updates"),
         "account_detail": (
             "Account Details",
@@ -48,6 +52,18 @@ class MainWindow(QMainWindow):
         "transactions": (
             "Transactions & Cash Desk",
             "Execute atomic deposits, withdrawals, and transfers",
+        ),
+        "deposits": (
+            "Cash Deposits",
+            "Process customer currency credits and desk receipts",
+        ),
+        "withdrawals": (
+            "Cash Withdrawals",
+            "Verify available liquidity and process currency withdrawals",
+        ),
+        "transfers": (
+            "Fund Transfers",
+            "Execute atomic dual-ledger customer fund transfers",
         ),
         "open_account": (
             "Open New Account",
@@ -95,6 +111,7 @@ class MainWindow(QMainWindow):
         self.statement_view: Optional[StatementView] = None
         self.audit_log_view: Optional[AuditLogView] = None
         self.ai_assistant_panel: Optional[AIAssistantPanel] = None
+        self.settings_view: Optional[SettingsView] = None
 
         self.setWindowTitle("NovaBank - Enterprise Banking System")
         self.setMinimumSize(1024, 680)
@@ -133,25 +150,54 @@ class MainWindow(QMainWindow):
         # Header Bar
         self.header_bar = QFrame()
         self.header_bar.setObjectName("HeaderBar")
-        header_layout = QVBoxLayout(self.header_bar)
-        header_layout.setContentsMargins(24, 8, 24, 8)
-        header_layout.setSpacing(2)
+        header_bar_layout = QHBoxLayout(self.header_bar)
+        header_bar_layout.setContentsMargins(28, 12, 28, 12)
+        header_bar_layout.setSpacing(16)
+
+        header_text_layout = QVBoxLayout()
+        header_text_layout.setSpacing(2)
 
         self.header_title = QLabel("Dashboard")
         self.header_title.setObjectName("HeaderTitle")
-        self.header_subtitle = QLabel("Financial overview and key performance metrics")
+        self.header_subtitle = QLabel("Overview of banking operations and account activity")
         self.header_subtitle.setObjectName("HeaderSubtitle")
 
-        header_layout.addWidget(self.header_title)
-        header_layout.addWidget(self.header_subtitle)
+        header_text_layout.addWidget(self.header_title)
+        header_text_layout.addWidget(self.header_subtitle)
+        header_bar_layout.addLayout(header_text_layout, stretch=1)
+
+        # Header right badge and actions
+        header_actions = QHBoxLayout()
+        header_actions.setSpacing(10)
+
+        self.env_badge = QLabel("Operational • Secure")
+        self.env_badge.setProperty("class", "StatusIndicatorPill")
+        self.env_badge.setProperty("status", "success")
+        header_actions.addWidget(self.env_badge)
+
+        header_bar_layout.addLayout(header_actions)
         content_layout.addWidget(self.header_bar)
 
         # Dynamic Stacked Views
         self.view_stack = QStackedWidget()
         self.view_stack.setObjectName("MainViewStack")
 
-        # Initialize pages for each navigation route
-        for view_key, (title, desc) in self.PAGE_TITLES.items():
+        # Initialize pages for each primary navigation route
+        primary_routes = [
+            "dashboard",
+            "accounts",
+            "account_detail",
+            "transactions",
+            "open_account",
+            "statements",
+            "audit_logs",
+            "ledger",
+            "ai_assistant",
+            "settings",
+        ]
+
+        for view_key in primary_routes:
+            title, desc = self.PAGE_TITLES.get(view_key, ("NovaBank", ""))
             if view_key == "dashboard":
                 page = DashboardView(
                     banking_service=self.banking_service,
@@ -219,8 +265,16 @@ class MainWindow(QMainWindow):
                     parent=self,
                 )
                 self.ai_assistant_panel = page
+            elif view_key == "settings":
+                page = SettingsView(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.settings_view = page
             else:
                 page = self._create_placeholder_page(view_key, title, desc)
+
             idx = self.view_stack.addWidget(page)
             self._view_indices[view_key] = idx
 
@@ -249,7 +303,7 @@ class MainWindow(QMainWindow):
         """Create a placeholder card page for the given view."""
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(28, 24, 28, 28)
         layout.setSpacing(16)
 
         card = QFrame()
@@ -273,7 +327,7 @@ class MainWindow(QMainWindow):
         return page
 
     def _apply_stylesheet(self) -> None:
-        """Load and apply QSS dark theme stylesheet."""
+        """Load and apply QSS light institutional theme stylesheet."""
         qss_path = Path(__file__).parent / "resources" / "styles.qss"
         if qss_path.exists():
             stylesheet = qss_path.read_text(encoding="utf-8")
@@ -281,6 +335,26 @@ class MainWindow(QMainWindow):
 
     def navigate_to(self, route_key: str) -> None:
         """Navigate content stack to the given route and update header info."""
+        # Handle teller sub-desk tabs mapping to TransactionsHubView
+        if route_key in ("deposits", "withdrawals", "transfers", "fund_transfers"):
+            if "transactions" in self._view_indices:
+                idx = self._view_indices["transactions"]
+                self.view_stack.setCurrentIndex(idx)
+                self.sidebar.set_active_route(route_key)
+
+                if self.transactions_hub_view:
+                    if route_key == "deposits":
+                        self.transactions_hub_view.tab_widget.setCurrentIndex(0)
+                    elif route_key == "withdrawals":
+                        self.transactions_hub_view.tab_widget.setCurrentIndex(1)
+                    elif route_key in ("transfers", "fund_transfers"):
+                        self.transactions_hub_view.tab_widget.setCurrentIndex(2)
+
+                title, subtitle = self.PAGE_TITLES.get(route_key, ("Transactions", ""))
+                self.header_title.setText(title)
+                self.header_subtitle.setText(subtitle)
+            return
+
         if route_key not in self._view_indices:
             return
 

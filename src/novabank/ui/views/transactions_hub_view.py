@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from novabank.ui.resources.icons import get_icon
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.transfer_view import TransferView
 from novabank.ui.views.withdrawal_view import WithdrawalView
@@ -36,17 +37,10 @@ class TransactionsHubView(QWidget):
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(28, 24, 28, 28)
+        layout.setSpacing(14)
 
         self.tab_widget = QTabWidget(self)
-        self.tab_widget.setStyleSheet(
-            "QTabWidget::pane { border: 1px solid #334155; background-color: #0f172a; border-radius: 8px; }"
-            "QTabBar::tab { background-color: #1e293b; color: #94a3b8; font-weight: bold; font-size: 13px; "
-            "padding: 10px 24px; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 4px; border: 1px solid #334155; border-bottom: none; }"
-            "QTabBar::tab:selected { background-color: #0f172a; color: #38bdf8; border-bottom: 2px solid #0284c7; }"
-            "QTabBar::tab:hover:!selected { background-color: #334155; color: #f8fafc; }"
-        )
 
         self.deposit_view = DepositView(
             banking_service=self.banking_service,
@@ -64,8 +58,8 @@ class TransactionsHubView(QWidget):
             parent=self.tab_widget,
         )
 
-        self.tab_widget.addTab(self.deposit_view, "Cash Deposit")
-        self.tab_widget.addTab(self.withdrawal_view, "Cash Withdrawal")
-        self.tab_widget.addTab(self.transfer_view, "Fund Transfer")
+        self.tab_widget.addTab(self.deposit_view, get_icon("deposits", color="#2563EB", size=16), "Cash Deposit")
+        self.tab_widget.addTab(self.withdrawal_view, get_icon("withdrawals", color="#2563EB", size=16), "Cash Withdrawal")
+        self.tab_widget.addTab(self.transfer_view, get_icon("transfers", color="#2563EB", size=16), "Fund Transfer")
 
         layout.addWidget(self.tab_widget)

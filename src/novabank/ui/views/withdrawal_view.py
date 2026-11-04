@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from novabank.application.dto.account_dto import AccountDTO
 from novabank.application.dto.transaction_dto import TransactionDTO
+from novabank.ui.resources.icons import get_icon
 from novabank.ui.viewmodels.transaction_viewmodel import TransactionViewModel
 
 if TYPE_CHECKING:
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class WithdrawalView(QWidget):
-    """Cash withdrawal terminal with mathematical overdraft prevention."""
+    """Institutional cash withdrawal terminal with mathematical overdraft prevention."""
 
     def __init__(
         self,
@@ -50,20 +51,20 @@ class WithdrawalView(QWidget):
 
     def _setup_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(28, 28, 28, 28)
-        main_layout.setSpacing(16)
+        main_layout.setContentsMargins(28, 24, 28, 28)
+        main_layout.setSpacing(18)
 
         # 1. Header Section
         header_layout = QVBoxLayout()
         header_layout.setSpacing(2)
 
         title_lbl = QLabel("Cash Withdrawal Desk")
-        title_lbl.setStyleSheet("font-size: 22px; font-weight: bold; color: #f8fafc;")
+        title_lbl.setStyleSheet("font-size: 20px; font-weight: 700; color: #172033;")
 
         subtitle_lbl = QLabel(
             "Process cash withdrawals with real-time balance checks and overdraft prevention."
         )
-        subtitle_lbl.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        subtitle_lbl.setStyleSheet("font-size: 13px; color: #64748B;")
 
         header_layout.addWidget(title_lbl)
         header_layout.addWidget(subtitle_lbl)
@@ -78,32 +79,29 @@ class WithdrawalView(QWidget):
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 16, 0)
-        content_layout.setSpacing(16)
+        content_layout.setSpacing(18)
 
         # 2. Account Lookup Card
         lookup_card = self._create_card()
         lookup_layout = QVBoxLayout(lookup_card)
         lookup_layout.setSpacing(12)
 
-        card_title = QLabel("1. Source Customer Account")
-        card_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #cbd5e1;")
+        card_title = QLabel("1. SOURCE CUSTOMER ACCOUNT")
+        card_title.setProperty("class", "CardTitle")
         lookup_layout.addWidget(card_title)
 
         acc_input_layout = QHBoxLayout()
-        acc_input_layout.setSpacing(8)
+        acc_input_layout.setSpacing(10)
 
         self.account_edit = QLineEdit()
         self.account_edit.setPlaceholderText("Enter 12-digit Account Number...")
-        self.account_edit.setStyleSheet(
-            "QLineEdit { background-color: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 8px 12px; color: #f8fafc; font-family: monospace; font-size: 14px; }"
-        )
+        self.account_edit.setStyleSheet("font-family: Consolas, monospace; font-size: 14px;")
         acc_input_layout.addWidget(self.account_edit, stretch=2)
 
         self.verify_btn = QPushButton("Lookup Account")
-        self.verify_btn.setStyleSheet(
-            "QPushButton { background-color: #334155; border-radius: 6px; padding: 8px 16px; color: #f8fafc; font-weight: 500; }"
-            "QPushButton:hover { background-color: #475569; }"
-        )
+        self.verify_btn.setProperty("class", "SecondaryButton")
+        self.verify_btn.setIcon(get_icon("search", color="#172033", size=14))
+        self.verify_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.verify_btn.clicked.connect(self._on_lookup_clicked)
         acc_input_layout.addWidget(self.verify_btn)
         lookup_layout.addLayout(acc_input_layout)
@@ -114,7 +112,7 @@ class WithdrawalView(QWidget):
         # Verified Account Info Banner
         self.account_banner = QFrame()
         self.account_banner.setStyleSheet(
-            "QFrame { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 12px; }"
+            "QFrame { background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px; }"
         )
         self.account_banner.setVisible(False)
         banner_layout = QHBoxLayout(self.account_banner)
@@ -122,18 +120,17 @@ class WithdrawalView(QWidget):
 
         banner_text_box = QVBoxLayout()
         self.banner_name = QLabel("Customer Name")
-        self.banner_name.setStyleSheet("font-size: 15px; font-weight: bold; color: #f8fafc;")
+        self.banner_name.setStyleSheet("font-size: 15px; font-weight: 700; color: #172033;")
         self.banner_details = QLabel("Balance: $0.00 USD  •  Status: Active")
-        self.banner_details.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        self.banner_details.setStyleSheet("color: #64748B; font-size: 12px;")
         banner_text_box.addWidget(self.banner_name)
         banner_text_box.addWidget(self.banner_details)
         banner_layout.addLayout(banner_text_box)
         banner_layout.addStretch()
 
         self.banner_badge = QLabel("● Active")
-        self.banner_badge.setStyleSheet(
-            "background-color: #064e3b; color: #34d399; font-weight: bold; padding: 4px 12px; border-radius: 10px;"
-        )
+        self.banner_badge.setProperty("class", "StatusIndicatorPill")
+        self.banner_badge.setProperty("status", "success")
         banner_layout.addWidget(self.banner_badge)
         lookup_layout.addWidget(self.account_banner)
 
@@ -142,27 +139,22 @@ class WithdrawalView(QWidget):
         # 3. Transaction Input Card
         tx_card = self._create_card()
         tx_layout = QVBoxLayout(tx_card)
-        tx_layout.setSpacing(12)
+        tx_layout.setSpacing(14)
 
-        tx_card_title = QLabel("2. Withdrawal Amount & Narration")
-        tx_card_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #cbd5e1;")
+        tx_card_title = QLabel("2. WITHDRAWAL AMOUNT & NARRATION")
+        tx_card_title.setProperty("class", "CardTitle")
         tx_layout.addWidget(tx_card_title)
 
         tx_form = QFormLayout()
-        tx_form.setSpacing(10)
+        tx_form.setSpacing(12)
         tx_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.amount_edit = QLineEdit()
         self.amount_edit.setPlaceholderText("0.00")
-        self.amount_edit.setStyleSheet(
-            "QLineEdit { background-color: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 8px 12px; color: #f8fafc; font-size: 15px; font-weight: bold; }"
-        )
+        self.amount_edit.setStyleSheet("font-size: 15px; font-weight: 700;")
         self.amount_error = self._create_error_label()
 
         self.desc_edit = QLineEdit("Counter Cash Withdrawal")
-        self.desc_edit.setStyleSheet(
-            "QLineEdit { background-color: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 8px 12px; color: #f8fafc; }"
-        )
 
         tx_form.addRow(
             "Withdrawal Amount ($) *:", self._wrap_field(self.amount_edit, self.amount_error)
@@ -171,23 +163,25 @@ class WithdrawalView(QWidget):
         tx_layout.addLayout(tx_form)
         content_layout.addWidget(tx_card)
 
-        # 4. Live Balance Deduction Preview Strip
+        # 4. Live Balance Preview Strip
         preview_card = self._create_card()
         preview_layout = QHBoxLayout(preview_card)
-        preview_layout.setContentsMargins(16, 12, 16, 12)
+        preview_layout.setContentsMargins(18, 14, 18, 14)
         preview_layout.setSpacing(16)
 
-        self.prev_bal_box = self._create_preview_stat("Current Balance", "$0.00", "#94a3b8")
+        self.prev_bal_box = self._create_preview_stat("Current Balance", "$0.00", "#64748B")
         minus_sign = QLabel("-")
-        minus_sign.setStyleSheet("font-size: 20px; color: #64748b; font-weight: bold;")
-        self.withdraw_stat_box = self._create_preview_stat("Withdrawal Amount", "$0.00", "#f87171")
+        minus_sign.setStyleSheet("font-size: 20px; color: #94A3B8; font-weight: 700;")
+        self.wdr_stat_box = self._create_preview_stat("Withdrawal Amount", "$0.00", "#DC2626")
         equals_sign = QLabel("=")
-        equals_sign.setStyleSheet("font-size: 20px; color: #64748b; font-weight: bold;")
-        self.projected_bal_box = self._create_preview_stat("Remaining Balance", "$0.00", "#10b981")
+        equals_sign.setStyleSheet("font-size: 20px; color: #94A3B8; font-weight: 700;")
+        self.projected_bal_box = self._create_preview_stat(
+            "Projected Balance", "$0.00", "#15803D"
+        )
 
         preview_layout.addLayout(self.prev_bal_box)
         preview_layout.addWidget(minus_sign, alignment=Qt.AlignmentFlag.AlignCenter)
-        preview_layout.addLayout(self.withdraw_stat_box)
+        preview_layout.addLayout(self.wdr_stat_box)
         preview_layout.addWidget(equals_sign, alignment=Qt.AlignmentFlag.AlignCenter)
         preview_layout.addLayout(self.projected_bal_box)
         content_layout.addWidget(preview_card)
@@ -197,25 +191,20 @@ class WithdrawalView(QWidget):
         action_layout.setSpacing(12)
 
         self.status_msg = QLabel("")
-        self.status_msg.setStyleSheet("color: #38bdf8; font-weight: 500;")
+        self.status_msg.setStyleSheet("color: #2563EB; font-weight: 500;")
         action_layout.addWidget(self.status_msg)
         action_layout.addStretch()
 
         self.clear_btn = QPushButton("Clear")
-        self.clear_btn.setStyleSheet(
-            "QPushButton { background-color: #334155; border-radius: 6px; padding: 8px 18px; color: #f8fafc; }"
-            "QPushButton:hover { background-color: #475569; }"
-        )
+        self.clear_btn.setProperty("class", "SecondaryButton")
+        self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clear_btn.clicked.connect(self._on_clear_clicked)
         action_layout.addWidget(self.clear_btn)
 
-        self.submit_btn = QPushButton("Execute Withdrawal")
+        self.submit_btn = QPushButton("Confirm Cash Withdrawal")
         self.submit_btn.setEnabled(False)
-        self.submit_btn.setStyleSheet(
-            "QPushButton { background-color: #dc2626; border-radius: 6px; padding: 8px 24px; color: #ffffff; font-weight: bold; font-size: 14px; }"
-            "QPushButton:hover { background-color: #b91c1c; }"
-            "QPushButton:disabled { background-color: #1e293b; color: #64748b; }"
-        )
+        self.submit_btn.setProperty("class", "PrimaryButton")
+        self.submit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.submit_btn.clicked.connect(self._on_submit_clicked)
         action_layout.addWidget(self.submit_btn)
 
@@ -227,14 +216,12 @@ class WithdrawalView(QWidget):
 
     def _create_card(self) -> QFrame:
         card = QFrame()
-        card.setStyleSheet(
-            "QFrame { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; }"
-        )
+        card.setProperty("class", "CardFrame")
         return card
 
     def _create_error_label(self) -> QLabel:
         lbl = QLabel("")
-        lbl.setStyleSheet("color: #f87171; font-size: 11px;")
+        lbl.setStyleSheet("color: #DC2626; font-size: 11px; font-weight: 600;")
         lbl.setVisible(False)
         return lbl
 
@@ -242,12 +229,10 @@ class WithdrawalView(QWidget):
         box = QVBoxLayout()
         box.setSpacing(2)
         lbl = QLabel(label)
-        lbl.setStyleSheet(
-            "color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: bold;"
-        )
+        lbl.setProperty("class", "CardTitle")
         val = QLabel(value)
         val.setObjectName(f"preview_{label.replace(' ', '_').lower()}")
-        val.setStyleSheet(f"color: {color_hex}; font-size: 16px; font-weight: bold;")
+        val.setStyleSheet(f"color: {color_hex}; font-size: 18px; font-weight: 700;")
         box.addWidget(lbl)
         box.addWidget(val)
         return box
@@ -294,40 +279,41 @@ class WithdrawalView(QWidget):
         self.vm.validate_withdrawal()
 
     def _update_preview(self) -> None:
-        current, withdraw_amt, projected = self.vm.calculate_withdrawal_preview()
+        current, wdr_amt, projected = self.vm.calculate_withdrawal_preview()
         curr_lbl = self.prev_bal_box.itemAt(1).widget()
-        with_lbl = self.withdraw_stat_box.itemAt(1).widget()
+        wdr_lbl = self.wdr_stat_box.itemAt(1).widget()
         proj_lbl = self.projected_bal_box.itemAt(1).widget()
 
         if isinstance(curr_lbl, QLabel):
             curr_lbl.setText(f"${current:,.2f}")
-        if isinstance(with_lbl, QLabel):
-            with_lbl.setText(f"${withdraw_amt:,.2f}")
+        if isinstance(wdr_lbl, QLabel):
+            wdr_lbl.setText(f"${wdr_amt:,.2f}")
         if isinstance(proj_lbl, QLabel):
             proj_lbl.setText(f"${projected:,.2f}")
+
+            # Overdraft highlight in red
             if projected < Decimal("0.00"):
-                proj_lbl.setStyleSheet("color: #f87171; font-size: 16px; font-weight: bold;")
+                proj_lbl.setStyleSheet("color: #DC2626; font-size: 18px; font-weight: 700;")
             else:
-                proj_lbl.setStyleSheet("color: #10b981; font-size: 16px; font-weight: bold;")
+                proj_lbl.setStyleSheet("color: #15803D; font-size: 18px; font-weight: 700;")
 
     def _on_account_found(self, acc: AccountDTO) -> None:
         self.account_error.setVisible(False)
         self.account_banner.setVisible(True)
         self.banner_name.setText(acc.holder_name)
         self.banner_details.setText(
-            f"Available Balance: ${acc.balance:,.2f} {acc.currency}  •  Phone: {acc.phone_number}"
+            f"Balance: ${acc.balance:,.2f} {acc.currency}  •  Phone: {acc.phone_number}"
         )
 
         if acc.is_active:
             self.banner_badge.setText("● Active")
-            self.banner_badge.setStyleSheet(
-                "background-color: #064e3b; color: #34d399; font-weight: bold; padding: 4px 12px; border-radius: 10px;"
-            )
+            self.banner_badge.setProperty("status", "success")
         else:
             self.banner_badge.setText("○ Closed")
-            self.banner_badge.setStyleSheet(
-                "background-color: #450a0a; color: #f87171; font-weight: bold; padding: 4px 12px; border-radius: 10px;"
-            )
+            self.banner_badge.setProperty("status", "danger")
+
+        self.banner_badge.style().unpolish(self.banner_badge)
+        self.banner_badge.style().polish(self.banner_badge)
 
         self._update_preview()
         self.vm.validate_withdrawal()
@@ -393,7 +379,7 @@ class WithdrawalView(QWidget):
             f"Description: {dto.description}\n"
             f"Date/Time:   {dto.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
             f"-----------------------------------------\n"
-            f"Cash dispensed and ledger updated successfully."
+            f"Currency successfully dispensed and ledger updated."
         )
 
         QMessageBox.information(

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import QDate, Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from novabank.application.dto.audit_dto import AuditEventDTO
+from novabank.ui.resources.icons import get_icon
 from novabank.ui.viewmodels.audit_log_viewmodel import AuditLogViewModel
 
 if TYPE_CHECKING:
@@ -67,29 +68,34 @@ class AuditLogView(QWidget):
 
     def _build_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 20, 24, 20)
+        main_layout.setContentsMargins(28, 24, 28, 24)
         main_layout.setSpacing(16)
 
         # 1. Header Row
         header_layout = QHBoxLayout()
         header_text = QVBoxLayout()
-        header_text.setSpacing(2)
+        header_text.setSpacing(3)
 
         title_lbl = QLabel("Audit Trail & Compliance Ledger")
-        title_lbl.setStyleSheet("font-size: 20px; font-weight: bold; color: #f8fafc;")
+        title_lbl.setStyleSheet(
+            "font-size: 20px; font-weight: 700; color: #172033; letter-spacing: -0.3px;"
+        )
         subtitle_lbl = QLabel(
             "Immutable audit log tracking all account creation, modifications, transfers, and transactions."
         )
-        subtitle_lbl.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        subtitle_lbl.setStyleSheet("font-size: 13px; color: #64748B;")
 
         header_text.addWidget(title_lbl)
         header_text.addWidget(subtitle_lbl)
         header_layout.addLayout(header_text)
         header_layout.addStretch()
 
-        self.compliance_badge = QLabel("🛡️ Immutable Log")
+        self.compliance_badge = QLabel("Immutable Audit Ledger")
+        self.compliance_badge.setProperty("class", "StatusIndicatorPill")
+        self.compliance_badge.setProperty("status", "success")
         self.compliance_badge.setStyleSheet(
-            "background-color: #064e3b; color: #34d399; font-weight: bold; padding: 6px 14px; border-radius: 12px; font-size: 12px;"
+            "background-color: #ECFDF5; color: #15803D; font-weight: 600; padding: 6px 14px; "
+            "border-radius: 12px; font-size: 12px; border: 1px solid #A7F3D0;"
         )
         header_layout.addWidget(self.compliance_badge)
         main_layout.addLayout(header_layout)
@@ -97,70 +103,74 @@ class AuditLogView(QWidget):
         # 2. Filter Toolbar Card
         filter_card = self._create_card()
         filter_layout = QHBoxLayout(filter_card)
-        filter_layout.setContentsMargins(14, 10, 14, 10)
-        filter_layout.setSpacing(10)
+        filter_layout.setContentsMargins(16, 12, 16, 12)
+        filter_layout.setSpacing(12)
 
         # Category Filter
         cat_lbl = QLabel("Category:")
-        cat_lbl.setStyleSheet("color: #cbd5e1; font-weight: 500; font-size: 12px;")
+        cat_lbl.setStyleSheet("color: #334155; font-weight: 600; font-size: 12px;")
         filter_layout.addWidget(cat_lbl)
 
         self.category_combo = QComboBox()
         for cat_code, cat_label in AuditLogViewModel.CATEGORIES:
             self.category_combo.addItem(cat_label, cat_code)
         self.category_combo.setStyleSheet(
-            "QComboBox { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 5px 10px; color: #f8fafc; font-size: 12px; min-width: 140px; }"
+            "QComboBox { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px 10px; color: #172033; font-size: 12px; min-width: 140px; }"
             "QComboBox::drop-down { border: none; }"
-            "QComboBox QAbstractItemView { background-color: #1e293b; color: #f8fafc; selection-background-color: #2563eb; }"
+            "QComboBox QAbstractItemView { background-color: #FFFFFF; color: #172033; selection-background-color: #EFF6FF; selection-color: #1E3A8A; }"
         )
         self.category_combo.currentIndexChanged.connect(self._on_category_changed)
         filter_layout.addWidget(self.category_combo)
 
         # Entity ID Search
         search_lbl = QLabel("Entity ID:")
-        search_lbl.setStyleSheet("color: #cbd5e1; font-weight: 500; font-size: 12px;")
+        search_lbl.setStyleSheet("color: #334155; font-weight: 600; font-size: 12px;")
         filter_layout.addWidget(search_lbl)
 
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Filter by Account No or Ref...")
+        self.search_edit.setFont(QFont("Consolas", 9))
         self.search_edit.setStyleSheet(
-            "QLineEdit { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 5px 10px; color: #f8fafc; font-size: 12px; max-width: 220px; }"
+            "QLineEdit { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px 10px; color: #172033; font-size: 12px; max-width: 220px; }"
+            "QLineEdit:focus { border: 1px solid #2563EB; }"
         )
         self.search_edit.textChanged.connect(self._on_search_text_changed)
         filter_layout.addWidget(self.search_edit)
 
         # Date Pickers
         from_lbl = QLabel("From:")
-        from_lbl.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        from_lbl.setStyleSheet("color: #64748B; font-size: 12px; font-weight: 500;")
         self.start_date_edit = QDateEdit()
         self.start_date_edit.setCalendarPopup(True)
         self.start_date_edit.setDisplayFormat("yyyy-MM-dd")
         self.start_date_edit.setDate(QDate.currentDate().addDays(-30))
         self.start_date_edit.setStyleSheet(
-            "QDateEdit { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 4px 8px; color: #f8fafc; font-size: 12px; }"
+            "QDateEdit { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 8px; color: #172033; font-size: 12px; }"
         )
 
         to_lbl = QLabel("To:")
-        to_lbl.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        to_lbl.setStyleSheet("color: #64748B; font-size: 12px; font-weight: 500;")
         self.end_date_edit = QDateEdit()
         self.end_date_edit.setCalendarPopup(True)
         self.end_date_edit.setDisplayFormat("yyyy-MM-dd")
         self.end_date_edit.setDate(QDate.currentDate())
         self.end_date_edit.setStyleSheet(
-            "QDateEdit { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 4px 8px; color: #f8fafc; font-size: 12px; }"
+            "QDateEdit { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 8px; color: #172033; font-size: 12px; }"
         )
 
         self.btn_apply_date = QPushButton("Filter Dates")
+        self.btn_apply_date.setProperty("class", "PrimaryButton")
         self.btn_apply_date.setStyleSheet(
-            "QPushButton { background-color: #2563eb; border-radius: 6px; padding: 5px 12px; color: #ffffff; font-weight: bold; font-size: 12px; }"
-            "QPushButton:hover { background-color: #1d4ed8; }"
+            "QPushButton { background-color: #2563EB; border: none; border-radius: 6px; padding: 5px 12px; color: #FFFFFF; font-weight: 600; font-size: 12px; }"
+            "QPushButton:hover { background-color: #1D4ED8; }"
         )
         self.btn_apply_date.clicked.connect(self._on_apply_dates_clicked)
 
         self.btn_clear_date = QPushButton("All Dates")
+        self.btn_clear_date.setProperty("class", "SecondaryButton")
         self.btn_clear_date.setStyleSheet(
-            "QPushButton { background-color: #334155; border-radius: 6px; padding: 5px 10px; color: #cbd5e1; font-size: 12px; }"
-            "QPushButton:hover { background-color: #475569; }"
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px 10px; color: #475569; font-size: 12px; font-weight: 500; }"
+            "QPushButton:hover { background-color: #F8FAFC; border-color: #94A3B8; }"
         )
         self.btn_clear_date.clicked.connect(self._on_clear_dates_clicked)
 
@@ -173,13 +183,15 @@ class AuditLogView(QWidget):
         filter_layout.addStretch()
 
         self.loading_indicator = QLabel("")
-        self.loading_indicator.setStyleSheet("color: #94a3b8; font-style: italic;")
+        self.loading_indicator.setStyleSheet("color: #64748B; font-style: italic; font-size: 12px;")
         filter_layout.addWidget(self.loading_indicator)
 
-        self.btn_refresh = QPushButton("🔄 Refresh")
+        self.btn_refresh = QPushButton("Refresh")
+        self.btn_refresh.setIcon(get_icon("refresh", "#475569"))
+        self.btn_refresh.setProperty("class", "SecondaryButton")
         self.btn_refresh.setStyleSheet(
-            "QPushButton { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 5px 12px; color: #f8fafc; font-size: 12px; }"
-            "QPushButton:hover { background-color: #1e293b; }"
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px 12px; color: #334155; font-size: 12px; font-weight: 500; }"
+            "QPushButton:hover { background-color: #F8FAFC; border-color: #94A3B8; }"
         )
         self.btn_refresh.clicked.connect(lambda: self.vm.load_data())
         filter_layout.addWidget(self.btn_refresh)
@@ -189,7 +201,7 @@ class AuditLogView(QWidget):
         # 3. Splitter: Left Table | Right JSON Inspector
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setStyleSheet(
-            "QSplitter::handle { background-color: #334155; width: 2px; margin: 4px; }"
+            "QSplitter::handle { background-color: #E2E8F0; width: 4px; margin: 2px; }"
         )
 
         # 3A. Left Table Section
@@ -203,10 +215,10 @@ class AuditLogView(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setStyleSheet(
-            "QTableWidget { background-color: #1e293b; alternate-background-color: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; font-size: 12px; }"
-            "QHeaderView::section { background-color: #0f172a; color: #94a3b8; font-weight: bold; border: none; padding: 8px 6px; border-bottom: 2px solid #334155; font-size: 11px; }"
-            "QTableWidget::item { padding: 6px; }"
-            "QTableWidget::item:selected { background-color: #2563eb; color: #ffffff; }"
+            "QTableWidget { background-color: #FFFFFF; alternate-background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; color: #172033; font-size: 12px; }"
+            "QHeaderView::section { background-color: #F8FAFC; color: #475569; font-weight: 600; border: none; padding: 8px 6px; border-bottom: 2px solid #E2E8F0; font-size: 11px; }"
+            "QTableWidget::item { padding: 6px; border-bottom: 1px solid #F1F5F9; }"
+            "QTableWidget::item:selected { background-color: #EFF6FF; color: #1E3A8A; }"
         )
 
         header = self.table.horizontalHeader()
@@ -222,24 +234,24 @@ class AuditLogView(QWidget):
         # 3B. Right JSON Inspector Panel
         inspector_card = self._create_card()
         inspector_layout = QVBoxLayout(inspector_card)
-        inspector_layout.setContentsMargins(14, 12, 14, 12)
+        inspector_layout.setContentsMargins(16, 14, 16, 14)
         inspector_layout.setSpacing(8)
 
         self.inspector_title = QLabel("Event Payload Inspector")
-        self.inspector_title.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 14px;")
+        self.inspector_title.setStyleSheet("color: #172033; font-weight: 700; font-size: 14px;")
         inspector_layout.addWidget(self.inspector_title)
 
         self.inspector_meta = QLabel(
             "Select an event from the ledger table to view its state diff."
         )
-        self.inspector_meta.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        self.inspector_meta.setStyleSheet("color: #64748B; font-size: 12px;")
         inspector_layout.addWidget(self.inspector_meta)
 
         self.json_viewer = QPlainTextEdit()
         self.json_viewer.setReadOnly(True)
         self.json_viewer.setFont(QFont("Consolas", 10))
         self.json_viewer.setStyleSheet(
-            "QPlainTextEdit { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #34d399; padding: 10px; font-family: monospace; }"
+            "QPlainTextEdit { background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; color: #0F172A; padding: 12px; font-family: monospace; font-size: 12px; }"
         )
         self.json_viewer.setPlaceholderText("No event selected.")
         inspector_layout.addWidget(self.json_viewer, stretch=1)
@@ -251,26 +263,28 @@ class AuditLogView(QWidget):
         # 4. Pagination Footer Bar
         footer_layout = QHBoxLayout()
         self.total_badge = QLabel("0 total audit events")
-        self.total_badge.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        self.total_badge.setStyleSheet("color: #64748B; font-size: 12px; font-weight: 500;")
         footer_layout.addWidget(self.total_badge)
         footer_layout.addStretch()
 
         self.btn_prev = QPushButton("◀ Prev")
+        self.btn_prev.setProperty("class", "SecondaryButton")
         self.btn_prev.setStyleSheet(
-            "QPushButton { background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 4px 10px; color: #cbd5e1; font-size: 12px; }"
-            "QPushButton:hover:enabled { background-color: #334155; }"
-            "QPushButton:disabled { color: #64748b; }"
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px 12px; color: #475569; font-size: 12px; font-weight: 500; }"
+            "QPushButton:hover:enabled { background-color: #F8FAFC; border-color: #94A3B8; }"
+            "QPushButton:disabled { color: #CBD5E1; border-color: #E2E8F0; }"
         )
         self.btn_prev.clicked.connect(self.vm.prev_page)
 
         self.page_info_label = QLabel("Page 1 of 1")
-        self.page_info_label.setStyleSheet("color: #f8fafc; font-size: 12px; margin: 0 8px;")
+        self.page_info_label.setStyleSheet("color: #172033; font-size: 12px; font-weight: 600; margin: 0 8px;")
 
         self.btn_next = QPushButton("Next ▶")
+        self.btn_next.setProperty("class", "SecondaryButton")
         self.btn_next.setStyleSheet(
-            "QPushButton { background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 4px 10px; color: #cbd5e1; font-size: 12px; }"
-            "QPushButton:hover:enabled { background-color: #334155; }"
-            "QPushButton:disabled { color: #64748b; }"
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px 12px; color: #475569; font-size: 12px; font-weight: 500; }"
+            "QPushButton:hover:enabled { background-color: #F8FAFC; border-color: #94A3B8; }"
+            "QPushButton:disabled { color: #CBD5E1; border-color: #E2E8F0; }"
         )
         self.btn_next.clicked.connect(self.vm.next_page)
 
@@ -281,8 +295,9 @@ class AuditLogView(QWidget):
 
     def _create_card(self) -> QFrame:
         card = QFrame()
+        card.setProperty("class", "CardFrame")
         card.setStyleSheet(
-            "QFrame { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; }"
+            "QFrame { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; }"
         )
         return card
 
@@ -321,22 +336,31 @@ class AuditLogView(QWidget):
         self.table.setRowCount(len(events))
         for row_idx, ev in enumerate(events):
             item_ts = QTableWidgetItem(ev.formatted_timestamp)
-            item_cat = QTableWidgetItem(ev.event_type)
-            item_ent = QTableWidgetItem(ev.entity_type)
-            item_eid = QTableWidgetItem(ev.entity_id)
-            item_act = QTableWidgetItem(ev.actor)
+            item_ts.setForeground(QColor("#64748B"))
 
-            # Styling badges by event type
+            item_cat = QTableWidgetItem(ev.event_type)
+            item_cat.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
+
+            item_ent = QTableWidgetItem(ev.entity_type)
+            item_ent.setForeground(QColor("#475569"))
+
+            item_eid = QTableWidgetItem(ev.entity_id)
+            item_eid.setFont(QFont("Consolas", 9))
+
+            item_act = QTableWidgetItem(ev.actor)
+            item_act.setForeground(QColor("#334155"))
+
+            # Semantic styling by event type
             if "CREATED" in ev.event_type:
-                item_cat.setForeground(Qt.GlobalColor.cyan)
+                item_cat.setForeground(QColor("#2563EB"))  # Institutional Blue
             elif "DEPOSIT" in ev.event_type:
-                item_cat.setForeground(Qt.GlobalColor.green)
+                item_cat.setForeground(QColor("#15803D"))  # Success Green
             elif "WITHDRAWAL" in ev.event_type:
-                item_cat.setForeground(Qt.GlobalColor.red)
+                item_cat.setForeground(QColor("#DC2626"))  # Debit Red
             elif "CLOSED" in ev.event_type:
-                item_cat.setForeground(Qt.GlobalColor.gray)
+                item_cat.setForeground(QColor("#64748B"))  # Neutral Gray
             elif "TRANSFER" in ev.event_type:
-                item_cat.setForeground(Qt.GlobalColor.yellow)
+                item_cat.setForeground(QColor("#D97706"))  # Amber Warning
 
             self.table.setItem(row_idx, 0, item_ts)
             self.table.setItem(row_idx, 1, item_cat)

@@ -8,6 +8,7 @@ from novabank.ui.views.audit_log_view import AuditLogView
 from novabank.ui.views.dashboard_view import DashboardView
 from novabank.ui.views.deposit_view import DepositView
 from novabank.ui.views.open_account_view import OpenAccountView
+from novabank.ui.views.settings_view import SettingsView
 from novabank.ui.views.statement_view import StatementView
 from novabank.ui.views.transactions_hub_view import TransactionsHubView
 from novabank.ui.views.transfer_view import TransferReceiptDialog, TransferView
@@ -22,6 +23,7 @@ __all__ = [
     "DashboardView",
     "DepositView",
     "OpenAccountView",
+    "SettingsView",
     "StatementView",
     "TransactionsHubView",
     "TransferReceiptDialog",

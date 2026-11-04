@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from novabank.ui.resources.icons import get_icon
 from novabank.ui.viewmodels.ai_assistant_viewmodel import AIAssistantViewModel
 
 if TYPE_CHECKING:
@@ -65,24 +67,28 @@ class AIAssistantPanel(QWidget):
 
     def _build_ui(self) -> None:
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(24, 20, 24, 20)
+        root_layout.setContentsMargins(28, 24, 28, 24)
         root_layout.setSpacing(16)
 
         # 1. Header & Connection Status Card
         header_card = QFrame()
         header_card.setObjectName("AIHeaderCard")
         header_card.setProperty("class", "CardFrame")
+        header_card.setStyleSheet(
+            "QFrame { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; }"
+        )
         header_layout = QHBoxLayout(header_card)
-        header_layout.setContentsMargins(16, 12, 16, 12)
-        header_layout.setSpacing(12)
+        header_layout.setContentsMargins(18, 14, 18, 14)
+        header_layout.setSpacing(14)
 
         info_box = QVBoxLayout()
-        info_box.setSpacing(2)
-        title_lbl = QLabel("🤖 Local Banking Assistant")
-        title_lbl.setProperty("class", "CardTitle")
-        title_lbl.setStyleSheet("font-size: 16px; font-weight: 700; color: #38bdf8;")
-        desc_lbl = QLabel("Private, client-side financial intelligence connecting strictly to local loopback (LM Studio).")
-        desc_lbl.setProperty("class", "CardMuted")
+        info_box.setSpacing(3)
+        title_lbl = QLabel("Financial Intelligence Assistant")
+        title_lbl.setStyleSheet("font-size: 16px; font-weight: 700; color: #172033;")
+        desc_lbl = QLabel(
+            "Private, client-side financial analytics connecting strictly to local loopback (LM Studio)."
+        )
+        desc_lbl.setStyleSheet("font-size: 13px; color: #64748B;")
         info_box.addWidget(title_lbl)
         info_box.addWidget(desc_lbl)
 
@@ -95,10 +101,20 @@ class AIAssistantPanel(QWidget):
         self.badge_lbl.setProperty("status", "warning")
         self.badge_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.badge_lbl.setMinimumWidth(220)
+        self.badge_lbl.setStyleSheet(
+            "QLabel { font-weight: 600; padding: 6px 14px; border-radius: 12px; font-size: 12px; border: 1px solid #E2E8F0; }"
+            "QLabel[status='success'] { background-color: #ECFDF5; color: #15803D; border-color: #A7F3D0; }"
+            "QLabel[status='warning'] { background-color: #FFFBEB; color: #D97706; border-color: #FDE68A; }"
+        )
 
-        self.btn_refresh_status = QPushButton("🔄 Ping AI")
+        self.btn_refresh_status = QPushButton("Check Status")
+        self.btn_refresh_status.setIcon(get_icon("refresh", "#475569"))
         self.btn_refresh_status.setObjectName("BtnRefreshAIStatus")
-        self.btn_refresh_status.setStyleSheet("padding: 4px 10px; font-size: 11px;")
+        self.btn_refresh_status.setProperty("class", "SecondaryButton")
+        self.btn_refresh_status.setStyleSheet(
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px 12px; font-size: 12px; color: #334155; font-weight: 500; }"
+            "QPushButton:hover { background-color: #F8FAFC; border-color: #94A3B8; }"
+        )
         self.btn_refresh_status.clicked.connect(self.vm.check_connection)
 
         header_layout.addWidget(self.badge_lbl)
@@ -108,21 +124,28 @@ class AIAssistantPanel(QWidget):
         # 2. Context & Quick Action Controls Bar
         controls_card = QFrame()
         controls_card.setProperty("class", "CardFrame")
+        controls_card.setStyleSheet(
+            "QFrame { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; }"
+        )
         controls_layout = QVBoxLayout(controls_card)
-        controls_layout.setContentsMargins(16, 12, 16, 12)
-        controls_layout.setSpacing(10)
+        controls_layout.setContentsMargins(18, 14, 18, 14)
+        controls_layout.setSpacing(12)
 
         # Account Context Bar
         acc_box = QHBoxLayout()
-        acc_box.setSpacing(8)
+        acc_box.setSpacing(10)
         acc_lbl = QLabel("Target Account:")
-        acc_lbl.setStyleSheet("font-weight: 600; color: #94a3b8;")
+        acc_lbl.setStyleSheet("font-weight: 600; color: #334155; font-size: 13px;")
 
         self.account_input = QLineEdit()
         self.account_input.setObjectName("AIAccountContextInput")
         self.account_input.setPlaceholderText("Enter 12-digit Account Number (e.g. 100000000001)")
         self.account_input.setMaxLength(14)
-        self.account_input.setStyleSheet("padding: 6px 10px; background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #f8fafc;")
+        self.account_input.setFont(QFont("Consolas", 10))
+        self.account_input.setStyleSheet(
+            "QLineEdit { padding: 7px 12px; background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; color: #172033; font-size: 13px; }"
+            "QLineEdit:focus { border: 1px solid #2563EB; }"
+        )
         self.account_input.textChanged.connect(self.vm.set_active_account)
 
         acc_box.addWidget(acc_lbl)
@@ -133,23 +156,37 @@ class AIAssistantPanel(QWidget):
         quick_actions_box = QHBoxLayout()
         quick_actions_box.setSpacing(8)
 
-        quick_lbl = QLabel("Quick Actions:")
-        quick_lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase;")
+        quick_lbl = QLabel("Quick Prompts:")
+        quick_lbl.setStyleSheet(
+            "font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;"
+        )
         quick_actions_box.addWidget(quick_lbl)
 
-        self.btn_summarize = QPushButton("📋 Summarize Statement")
+        btn_style = (
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px 12px; font-size: 12px; color: #334155; font-weight: 500; }"
+            "QPushButton:hover { background-color: #F8FAFC; border-color: #94A3B8; }"
+            "QPushButton:disabled { background-color: #F1F5F9; color: #94A3B8; border-color: #E2E8F0; }"
+        )
+
+        self.btn_summarize = QPushButton("Summarize Statement")
+        self.btn_summarize.setIcon(get_icon("file_text", "#475569"))
         self.btn_summarize.setObjectName("BtnQuickSummarize")
-        self.btn_summarize.setStyleSheet("padding: 6px 12px; background-color: #1e3a8a; border-radius: 6px; font-weight: 500;")
+        self.btn_summarize.setProperty("class", "SecondaryButton")
+        self.btn_summarize.setStyleSheet(btn_style)
         self.btn_summarize.clicked.connect(lambda: self.vm.quick_action_summarize())
 
-        self.btn_large_expenses = QPushButton("💸 Find Large Expenses")
+        self.btn_large_expenses = QPushButton("Find Large Expenses")
+        self.btn_large_expenses.setIcon(get_icon("dollar_sign", "#475569"))
         self.btn_large_expenses.setObjectName("BtnQuickLargeExpenses")
-        self.btn_large_expenses.setStyleSheet("padding: 6px 12px; background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; font-weight: 500;")
+        self.btn_large_expenses.setProperty("class", "SecondaryButton")
+        self.btn_large_expenses.setStyleSheet(btn_style)
         self.btn_large_expenses.clicked.connect(lambda: self.vm.quick_action_find_large_expenses())
 
-        self.btn_explain_flags = QPushButton("🛡️ Explain Active Flags")
+        self.btn_explain_flags = QPushButton("Explain Active Flags")
+        self.btn_explain_flags.setIcon(get_icon("alert_triangle", "#475569"))
         self.btn_explain_flags.setObjectName("BtnQuickExplainFlags")
-        self.btn_explain_flags.setStyleSheet("padding: 6px 12px; background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; font-weight: 500;")
+        self.btn_explain_flags.setProperty("class", "SecondaryButton")
+        self.btn_explain_flags.setStyleSheet(btn_style)
         self.btn_explain_flags.clicked.connect(lambda: self.vm.quick_action_explain_flags())
 
         quick_actions_box.addWidget(self.btn_summarize)
@@ -157,9 +194,13 @@ class AIAssistantPanel(QWidget):
         quick_actions_box.addWidget(self.btn_explain_flags)
         quick_actions_box.addStretch()
 
-        self.btn_clear_chat = QPushButton("🗑️ Clear Chat")
+        self.btn_clear_chat = QPushButton("Clear Chat")
         self.btn_clear_chat.setObjectName("BtnClearChat")
-        self.btn_clear_chat.setStyleSheet("padding: 4px 10px; font-size: 11px; background: transparent; border: none; color: #94a3b8;")
+        self.btn_clear_chat.setProperty("class", "SecondaryButton")
+        self.btn_clear_chat.setStyleSheet(
+            "QPushButton { background: transparent; border: none; padding: 4px 8px; font-size: 12px; color: #64748B; font-weight: 500; }"
+            "QPushButton:hover { color: #DC2626; text-decoration: underline; }"
+        )
         self.btn_clear_chat.clicked.connect(self._clear_chat)
         quick_actions_box.addWidget(self.btn_clear_chat)
 
@@ -171,27 +212,40 @@ class AIAssistantPanel(QWidget):
         self.chat_display.setObjectName("AIChatDisplay")
         self.chat_display.setReadOnly(True)
         self.chat_display.setStyleSheet(
-            "background-color: #0b1120; border: 1px solid #1e293b; border-radius: 8px; "
-            "padding: 16px; font-size: 13px; line-height: 1.5; color: #e2e8f0;"
+            "QTextEdit { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; "
+            "padding: 16px; font-size: 13px; line-height: 1.5; color: #172033; }"
         )
         root_layout.addWidget(self.chat_display, stretch=1)
 
         # 4. Input Prompt & Submit Bar
         input_container = QFrame()
         input_container.setProperty("class", "CardFrame")
+        input_container.setStyleSheet(
+            "QFrame { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; }"
+        )
         input_layout = QHBoxLayout(input_container)
-        input_layout.setContentsMargins(12, 8, 12, 8)
-        input_layout.setSpacing(8)
+        input_layout.setContentsMargins(14, 10, 14, 10)
+        input_layout.setSpacing(10)
 
         self.prompt_input = QLineEdit()
         self.prompt_input.setObjectName("AIPromptInput")
-        self.prompt_input.setPlaceholderText("Ask a question (e.g. 'Show deposits over 5,000 from last month')...")
-        self.prompt_input.setStyleSheet("padding: 10px 14px; background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; font-size: 13px; color: #f8fafc;")
+        self.prompt_input.setPlaceholderText(
+            "Ask a question (e.g. 'Show deposits over 5,000 from last month')..."
+        )
+        self.prompt_input.setStyleSheet(
+            "QLineEdit { padding: 9px 14px; background-color: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px; color: #172033; }"
+            "QLineEdit:focus { background-color: #FFFFFF; border-color: #2563EB; }"
+        )
         self.prompt_input.returnPressed.connect(self._on_send_clicked)
 
-        self.btn_send = QPushButton("🚀 Send")
+        self.btn_send = QPushButton("Send")
         self.btn_send.setObjectName("BtnSendAIPrompt")
         self.btn_send.setProperty("class", "PrimaryButton")
+        self.btn_send.setStyleSheet(
+            "QPushButton { background-color: #2563EB; border: none; border-radius: 6px; padding: 9px 20px; color: #FFFFFF; font-weight: 600; font-size: 13px; }"
+            "QPushButton:hover { background-color: #1D4ED8; }"
+            "QPushButton:disabled { background-color: #94A3B8; }"
+        )
         self.btn_send.setMinimumWidth(90)
         self.btn_send.clicked.connect(self._on_send_clicked)
 
@@ -203,7 +257,7 @@ class AIAssistantPanel(QWidget):
         # Initial Welcome Message
         self._append_message(
             "assistant",
-            "👋 Welcome to **NovaBank AI Assistant**.\n"
+            "Welcome to **NovaBank AI Assistant**.\n"
             "All financial queries are processed locally with strict PII scrubbing. "
             "Enter an account number above to query transactions, generate statement summaries, or inspect security flags.",
         )
@@ -228,9 +282,9 @@ class AIAssistantPanel(QWidget):
         self.prompt_input.setEnabled(not is_loading)
 
         if is_loading:
-            self.btn_send.setText("⏳...")
+            self.btn_send.setText("Processing...")
         else:
-            self.btn_send.setText("🚀 Send")
+            self.btn_send.setText("Send")
 
     def _on_send_clicked(self) -> None:
         text = self.prompt_input.text().strip()
@@ -265,11 +319,11 @@ class AIAssistantPanel(QWidget):
 
         if role == "user":
             block = (
-                f"<div style='margin-bottom: 12px; text-align: right;'>"
-                f"  <span style='font-size: 11px; color: #64748b; margin-right: 4px;'>{timestamp}</span>"
-                f"  <span style='font-weight: 600; color: #38bdf8;'>Teller</span><br>"
-                f"  <div style='display: inline-block; background-color: #1e3a8a; color: #ffffff; "
-                f"              padding: 8px 14px; border-radius: 8px; margin-top: 4px; text-align: left; max-width: 80%;'>"
+                f"<div style='margin-bottom: 14px; text-align: right;'>"
+                f"  <span style='font-size: 11px; color: #94A3B8; margin-right: 6px;'>{timestamp}</span>"
+                f"  <span style='font-weight: 600; color: #1E3A8A; font-size: 12px;'>Teller</span><br>"
+                f"  <div style='display: inline-block; background-color: #2563EB; color: #FFFFFF; "
+                f"              padding: 10px 16px; border-radius: 8px; margin-top: 4px; text-align: left; max-width: 80%; font-size: 13px;'>"
                 f"    {formatted}"
                 f"  </div>"
                 f"</div>"
@@ -277,10 +331,10 @@ class AIAssistantPanel(QWidget):
         else:
             block = (
                 f"<div style='margin-bottom: 16px; text-align: left;'>"
-                f"  <span style='font-weight: 600; color: #34d399;'>🤖 NovaBank AI</span>"
-                f"  <span style='font-size: 11px; color: #64748b; margin-left: 6px;'>{timestamp}</span><br>"
-                f"  <div style='background-color: #1e293b; color: #f1f5f9; padding: 12px 16px; "
-                f"              border: 1px solid #334155; border-radius: 8px; margin-top: 4px; line-height: 1.5;'>"
+                f"  <span style='font-weight: 700; color: #17365D; font-size: 12px;'>NovaBank Assistant</span>"
+                f"  <span style='font-size: 11px; color: #94A3B8; margin-left: 6px;'>{timestamp}</span><br>"
+                f"  <div style='background-color: #F8FAFC; color: #172033; padding: 12px 16px; "
+                f"              border: 1px solid #E2E8F0; border-radius: 8px; margin-top: 4px; line-height: 1.5; font-size: 13px;'>"
                 f"    {formatted}"
                 f"  </div>"
                 f"</div>"
@@ -290,4 +344,3 @@ class AIAssistantPanel(QWidget):
         # Scroll to bottom
         sb = self.chat_display.verticalScrollBar()
         sb.setValue(sb.maximum())
-

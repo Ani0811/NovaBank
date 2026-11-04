@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import QDate, Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QButtonGroup,
     QDateEdit,
@@ -26,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from novabank.application.dto.account_dto import AccountDTO
 from novabank.application.dto.statement_dto import AccountStatementDTO, StatementEntryDTO
+from novabank.ui.resources.icons import get_icon
 from novabank.ui.viewmodels.statement_viewmodel import StatementViewModel
 
 if TYPE_CHECKING:
@@ -64,20 +66,22 @@ class StatementView(QWidget):
     def _setup_ui(self) -> None:
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(28, 24, 28, 24)
-        main_layout.setSpacing(14)
+        main_layout.setSpacing(16)
 
         # 1. Header Section
         header_layout = QHBoxLayout()
         header_text = QVBoxLayout()
-        header_text.setSpacing(2)
+        header_text.setSpacing(3)
 
         title_lbl = QLabel("Account Statements & Ledger Explorer")
-        title_lbl.setStyleSheet("font-size: 22px; font-weight: bold; color: #f8fafc;")
+        title_lbl.setStyleSheet(
+            "font-size: 20px; font-weight: 700; color: #172033; letter-spacing: -0.3px;"
+        )
 
         subtitle_lbl = QLabel(
             "Inspect verified ledger statements with period filtering, running balance reconciliations, and audit metrics."
         )
-        subtitle_lbl.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        subtitle_lbl.setStyleSheet("font-size: 13px; color: #64748B;")
 
         header_text.addWidget(title_lbl)
         header_text.addWidget(subtitle_lbl)
@@ -86,27 +90,34 @@ class StatementView(QWidget):
 
         self.reconciliation_badge = QLabel("✓ Reconciled")
         self.reconciliation_badge.setVisible(False)
+        self.reconciliation_badge.setProperty("class", "StatusIndicatorPill")
+        self.reconciliation_badge.setProperty("status", "success")
         self.reconciliation_badge.setStyleSheet(
-            "background-color: #064e3b; color: #34d399; font-weight: bold; padding: 6px 16px; border-radius: 12px; font-size: 12px;"
+            "background-color: #ECFDF5; color: #15803D; font-weight: 600; padding: 6px 14px; "
+            "border-radius: 12px; font-size: 12px; border: 1px solid #A7F3D0;"
         )
         header_layout.addWidget(self.reconciliation_badge)
 
-        self.btn_export_csv = QPushButton("⬇ Export CSV")
+        self.btn_export_csv = QPushButton("Export CSV")
+        self.btn_export_csv.setIcon(get_icon("download", "#475569"))
+        self.btn_export_csv.setProperty("class", "SecondaryButton")
         self.btn_export_csv.setEnabled(False)
         self.btn_export_csv.setStyleSheet(
-            "QPushButton { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 6px 14px; color: #f8fafc; font-weight: 500; font-size: 13px; }"
-            "QPushButton:hover:enabled { background-color: #1e293b; border-color: #38bdf8; }"
-            "QPushButton:disabled { background-color: #1e293b; color: #64748b; border-color: #334155; }"
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 7px 14px; color: #334155; font-weight: 500; font-size: 13px; }"
+            "QPushButton:hover:enabled { background-color: #F8FAFC; border-color: #94A3B8; }"
+            "QPushButton:disabled { background-color: #F1F5F9; color: #94A3B8; border-color: #E2E8F0; }"
         )
         self.btn_export_csv.clicked.connect(self._on_export_csv_clicked)
         header_layout.addWidget(self.btn_export_csv)
 
-        self.btn_export_pdf = QPushButton("⬇ Export PDF")
+        self.btn_export_pdf = QPushButton("Export PDF")
+        self.btn_export_pdf.setIcon(get_icon("download", "#475569"))
+        self.btn_export_pdf.setProperty("class", "SecondaryButton")
         self.btn_export_pdf.setEnabled(False)
         self.btn_export_pdf.setStyleSheet(
-            "QPushButton { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 6px 14px; color: #f8fafc; font-weight: 500; font-size: 13px; }"
-            "QPushButton:hover:enabled { background-color: #1e293b; border-color: #38bdf8; }"
-            "QPushButton:disabled { background-color: #1e293b; color: #64748b; border-color: #334155; }"
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 7px 14px; color: #334155; font-weight: 500; font-size: 13px; }"
+            "QPushButton:hover:enabled { background-color: #F8FAFC; border-color: #94A3B8; }"
+            "QPushButton:disabled { background-color: #F1F5F9; color: #94A3B8; border-color: #E2E8F0; }"
         )
         self.btn_export_pdf.clicked.connect(self._on_export_pdf_clicked)
         header_layout.addWidget(self.btn_export_pdf)
@@ -116,53 +127,59 @@ class StatementView(QWidget):
         # 2. Account Lookup & Toolbar Card
         toolbar_card = self._create_card()
         toolbar_layout = QVBoxLayout(toolbar_card)
+        toolbar_layout.setContentsMargins(16, 14, 16, 14)
         toolbar_layout.setSpacing(12)
 
         # 2A. Account Selector Row
         acc_row = QHBoxLayout()
-        acc_row.setSpacing(8)
+        acc_row.setSpacing(10)
 
         acc_title = QLabel("Account:")
-        acc_title.setStyleSheet("color: #cbd5e1; font-weight: 500; font-size: 13px;")
+        acc_title.setStyleSheet("color: #334155; font-weight: 600; font-size: 13px;")
         acc_row.addWidget(acc_title)
 
         self.account_edit = QLineEdit()
         self.account_edit.setPlaceholderText("Enter 12-digit Account Number...")
+        self.account_edit.setFont(QFont("Consolas", 10))
         self.account_edit.setStyleSheet(
-            "QLineEdit { background-color: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 6px 12px; color: #f8fafc; font-family: monospace; font-size: 13px; max-width: 240px; }"
+            "QLineEdit { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px 12px; color: #172033; font-size: 13px; max-width: 240px; }"
+            "QLineEdit:focus { border: 1px solid #2563EB; }"
         )
         acc_row.addWidget(self.account_edit)
 
         self.lookup_btn = QPushButton("Lookup Account")
+        self.lookup_btn.setIcon(get_icon("search", "#FFFFFF"))
+        self.lookup_btn.setProperty("class", "PrimaryButton")
         self.lookup_btn.setStyleSheet(
-            "QPushButton { background-color: #334155; border-radius: 6px; padding: 6px 14px; color: #f8fafc; font-weight: 500; font-size: 13px; }"
-            "QPushButton:hover { background-color: #475569; }"
+            "QPushButton { background-color: #2563EB; border: none; border-radius: 6px; padding: 7px 16px; color: #FFFFFF; font-weight: 600; font-size: 13px; }"
+            "QPushButton:hover { background-color: #1D4ED8; }"
+            "QPushButton:disabled { background-color: #94A3B8; }"
         )
         self.lookup_btn.clicked.connect(self._on_lookup_clicked)
         acc_row.addWidget(self.lookup_btn)
 
         self.account_info_lbl = QLabel("")
         self.account_info_lbl.setStyleSheet(
-            "color: #38bdf8; font-weight: bold; font-size: 13px; margin-left: 12px;"
+            "color: #15803D; font-weight: 600; font-size: 13px; margin-left: 12px;"
         )
         acc_row.addWidget(self.account_info_lbl)
         acc_row.addStretch()
 
         self.loading_indicator = QLabel("")
-        self.loading_indicator.setStyleSheet("color: #94a3b8; font-style: italic;")
+        self.loading_indicator.setStyleSheet("color: #64748B; font-style: italic; font-size: 12px;")
         acc_row.addWidget(self.loading_indicator)
 
         toolbar_layout.addLayout(acc_row)
 
         self.account_error = QLabel("")
-        self.account_error.setStyleSheet("color: #f87171; font-size: 11px;")
+        self.account_error.setStyleSheet("color: #DC2626; font-size: 12px; font-weight: 500;")
         self.account_error.setVisible(False)
         toolbar_layout.addWidget(self.account_error)
 
         # Divider
         divider = QFrame()
         divider.setFrameShape(QFrame.Shape.HLine)
-        divider.setStyleSheet("color: #334155; margin-top: 2px; margin-bottom: 2px;")
+        divider.setStyleSheet("color: #E2E8F0; margin-top: 2px; margin-bottom: 2px;")
         toolbar_layout.addWidget(divider)
 
         # 2B. Period Filter Presets Row
@@ -170,7 +187,7 @@ class StatementView(QWidget):
         filter_row.setSpacing(8)
 
         filter_lbl = QLabel("Date Period:")
-        filter_lbl.setStyleSheet("color: #94a3b8; font-weight: 500; font-size: 13px;")
+        filter_lbl.setStyleSheet("color: #64748B; font-weight: 600; font-size: 13px;")
         filter_row.addWidget(filter_lbl)
 
         self.preset_group = QButtonGroup(self)
@@ -192,14 +209,16 @@ class StatementView(QWidget):
             (self.btn_custom, StatementViewModel.PRESET_CUSTOM),
         ]
 
+        preset_style = (
+            "QPushButton { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 6px 12px; color: #475569; font-size: 12px; font-weight: 500; }"
+            "QPushButton:checked { background-color: #2563EB; color: #FFFFFF; border-color: #2563EB; font-weight: 600; }"
+            "QPushButton:hover:!checked { background-color: #F8FAFC; color: #1E293B; border-color: #94A3B8; }"
+        )
+
         for btn, preset_code in presets:
             btn.setCheckable(True)
             btn.setProperty("preset_code", preset_code)
-            btn.setStyleSheet(
-                "QPushButton { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 6px 12px; color: #cbd5e1; font-size: 12px; }"
-                "QPushButton:checked { background-color: #0284c7; color: #ffffff; border-color: #38bdf8; font-weight: bold; }"
-                "QPushButton:hover:!checked { background-color: #1e293b; color: #f8fafc; }"
-            )
+            btn.setStyleSheet(preset_style)
             self.preset_group.addButton(btn)
             filter_row.addWidget(btn)
 
@@ -214,27 +233,28 @@ class StatementView(QWidget):
         custom_layout.setSpacing(6)
 
         from_lbl = QLabel("From:")
-        from_lbl.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        from_lbl.setStyleSheet("color: #64748B; font-size: 12px; font-weight: 500;")
         self.start_date_edit = QDateEdit()
         self.start_date_edit.setCalendarPopup(True)
         self.start_date_edit.setDisplayFormat("yyyy-MM-dd")
         self.start_date_edit.setStyleSheet(
-            "QDateEdit { background-color: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 4px 8px; color: #f8fafc; font-size: 12px; }"
+            "QDateEdit { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 8px; color: #172033; font-size: 12px; }"
         )
 
         to_lbl = QLabel("To:")
-        to_lbl.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        to_lbl.setStyleSheet("color: #64748B; font-size: 12px; font-weight: 500;")
         self.end_date_edit = QDateEdit()
         self.end_date_edit.setCalendarPopup(True)
         self.end_date_edit.setDisplayFormat("yyyy-MM-dd")
         self.end_date_edit.setStyleSheet(
-            "QDateEdit { background-color: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 4px 8px; color: #f8fafc; font-size: 12px; }"
+            "QDateEdit { background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 8px; color: #172033; font-size: 12px; }"
         )
 
         self.apply_custom_btn = QPushButton("Apply")
+        self.apply_custom_btn.setProperty("class", "PrimaryButton")
         self.apply_custom_btn.setStyleSheet(
-            "QPushButton { background-color: #2563eb; border-radius: 6px; padding: 4px 12px; color: #ffffff; font-weight: bold; font-size: 12px; }"
-            "QPushButton:hover { background-color: #1d4ed8; }"
+            "QPushButton { background-color: #2563EB; border: none; border-radius: 6px; padding: 5px 14px; color: #FFFFFF; font-weight: 600; font-size: 12px; }"
+            "QPushButton:hover { background-color: #1D4ED8; }"
         )
         self.apply_custom_btn.clicked.connect(self._on_apply_custom_clicked)
 
@@ -260,16 +280,16 @@ class StatementView(QWidget):
         cards_layout.setSpacing(12)
 
         self.card_opening = self._create_kpi_card(
-            "Opening Balance", "$0.00 USD", "Prior to period start", "#94a3b8"
+            "Opening Balance", "$0.00 USD", "Prior to period start", "#172033"
         )
         self.card_credits = self._create_kpi_card(
-            "Total Inflow", "$0.00 USD", "Credits deposited / received", "#34d399"
+            "Total Inflow", "$0.00 USD", "Credits deposited / received", "#15803D"
         )
         self.card_debits = self._create_kpi_card(
-            "Total Outflow", "$0.00 USD", "Debits withdrawn / sent", "#f87171"
+            "Total Outflow", "$0.00 USD", "Debits withdrawn / sent", "#DC2626"
         )
         self.card_closing = self._create_kpi_card(
-            "Ending Balance", "$0.00 USD", "Period closing balance", "#38bdf8"
+            "Ending Balance", "$0.00 USD", "Period closing balance", "#17365D"
         )
 
         cards_layout.addWidget(self.card_opening)
@@ -289,10 +309,10 @@ class StatementView(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setStyleSheet(
-            "QTableWidget { background-color: #1e293b; alternate-background-color: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; font-size: 13px; }"
-            "QHeaderView::section { background-color: #0f172a; color: #94a3b8; font-weight: bold; border: none; padding: 10px 8px; border-bottom: 2px solid #334155; font-size: 12px; }"
-            "QTableWidget::item { padding: 6px 8px; }"
-            "QTableWidget::item:selected { background-color: #2563eb; color: #ffffff; }"
+            "QTableWidget { background-color: #FFFFFF; alternate-background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; color: #172033; font-size: 13px; }"
+            "QHeaderView::section { background-color: #F8FAFC; color: #475569; font-weight: 600; border: none; padding: 10px 8px; border-bottom: 2px solid #E2E8F0; font-size: 12px; }"
+            "QTableWidget::item { padding: 6px 8px; border-bottom: 1px solid #F1F5F9; }"
+            "QTableWidget::item:selected { background-color: #EFF6FF; color: #1E3A8A; }"
         )
 
         header = self.table.horizontalHeader()
@@ -309,13 +329,13 @@ class StatementView(QWidget):
         # 5. Footer / Status Row
         footer_layout = QHBoxLayout()
         self.tx_count_lbl = QLabel("0 transactions in period")
-        self.tx_count_lbl.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        self.tx_count_lbl.setStyleSheet("color: #64748B; font-size: 12px; font-weight: 500;")
         footer_layout.addWidget(self.tx_count_lbl)
         footer_layout.addStretch()
 
         self.statement_period_lbl = QLabel("")
         self.statement_period_lbl.setStyleSheet(
-            "color: #cbd5e1; font-size: 12px; font-weight: 500;"
+            "color: #475569; font-size: 12px; font-weight: 600;"
         )
         footer_layout.addWidget(self.statement_period_lbl)
 
@@ -323,8 +343,9 @@ class StatementView(QWidget):
 
     def _create_card(self) -> QFrame:
         card = QFrame()
+        card.setProperty("class", "CardFrame")
         card.setStyleSheet(
-            "QFrame { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; }"
+            "QFrame { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; }"
         )
         return card
 
@@ -333,24 +354,25 @@ class StatementView(QWidget):
     ) -> QFrame:
         card = QFrame()
         card.setObjectName(f"kpi_card_{title.replace(' ', '_').lower()}")
+        card.setProperty("class", "CardFrame")
         card.setStyleSheet(
-            "QFrame { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px; }"
+            "QFrame { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; }"
         )
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(3)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(4)
 
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet(
-            "color: #94a3b8; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;"
+            "color: #64748B; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"
         )
 
         val_lbl = QLabel(initial_value)
         val_lbl.setObjectName("kpi_value")
-        val_lbl.setStyleSheet(f"color: {color_hex}; font-size: 20px; font-weight: bold;")
+        val_lbl.setStyleSheet(f"color: {color_hex}; font-size: 20px; font-weight: 700;")
 
         sub_lbl = QLabel(subtitle)
-        sub_lbl.setStyleSheet("color: #64748b; font-size: 11px;")
+        sub_lbl.setStyleSheet("color: #94A3B8; font-size: 11px;")
 
         layout.addWidget(title_lbl)
         layout.addWidget(val_lbl)
@@ -409,9 +431,9 @@ class StatementView(QWidget):
             f"{acc.holder_name}  •  {status_symbol}  •  Current Bal: ${acc.balance:,.2f} {acc.currency}"
         )
         self.account_info_lbl.setStyleSheet(
-            "color: #34d399; font-weight: bold; font-size: 13px; margin-left: 12px;"
+            "color: #15803D; font-weight: 600; font-size: 13px; margin-left: 12px;"
             if acc.is_active
-            else "color: #f87171; font-weight: bold; font-size: 13px; margin-left: 12px;"
+            else "color: #DC2626; font-weight: 600; font-size: 13px; margin-left: 12px;"
         )
 
     def _on_account_lookup_failed(self, error_msg: str) -> None:
@@ -534,13 +556,15 @@ class StatementView(QWidget):
             # 0. Date & Time
             dt_str = entry.created_at.strftime("%Y-%m-%d %H:%M:%S")
             dt_item = QTableWidgetItem(dt_str)
+            dt_item.setForeground(Qt.GlobalColor.darkGray)
 
             # 1. Reference ID
             ref_item = QTableWidgetItem(entry.transaction_ref)
-            ref_item.setFont(self.font())
+            ref_item.setFont(QFont("Consolas", 9))
 
             # 2. Type
             type_item = QTableWidgetItem(entry.transaction_type)
+            type_item.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
 
             # 3. Description
             desc_item = QTableWidgetItem(entry.description)
@@ -549,17 +573,20 @@ class StatementView(QWidget):
             debit_item = QTableWidgetItem(entry.formatted_debit)
             debit_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             debit_item.setForeground(Qt.GlobalColor.red)
+            debit_item.setFont(QFont("Consolas", 9))
 
             # 5. Credit
             credit_item = QTableWidgetItem(entry.formatted_credit)
             credit_item.setTextAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
-            credit_item.setForeground(Qt.GlobalColor.green)
+            credit_item.setForeground(Qt.GlobalColor.darkGreen)
+            credit_item.setFont(QFont("Consolas", 9))
 
             # 6. Running Balance
             bal_item = QTableWidgetItem(entry.formatted_balance_after)
             bal_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            bal_item.setFont(QFont("Consolas", 9, QFont.Weight.Bold))
 
             self.table.setItem(row, 0, dt_item)
             self.table.setItem(row, 1, ref_item)

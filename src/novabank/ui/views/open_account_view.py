@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 class OpenAccountView(QWidget):
-    """View widget for creating and registering new bank customer accounts."""
+    """Institutional view widget for creating and registering new bank customer accounts."""
 
     def __init__(
         self,
@@ -49,21 +49,21 @@ class OpenAccountView(QWidget):
 
     def _setup_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(28, 28, 28, 28)
+        main_layout.setContentsMargins(28, 24, 28, 28)
         main_layout.setSpacing(20)
 
         # Header Section
         header_layout = QVBoxLayout()
-        header_layout.setSpacing(4)
+        header_layout.setSpacing(2)
 
         title_label = QLabel("Open New Customer Account")
         title_label.setObjectName("viewTitle")
-        title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #f8fafc;")
+        title_label.setStyleSheet("font-size: 20px; font-weight: 700; color: #172033;")
 
         subtitle_label = QLabel(
-            "Enter customer identification and initial account details to register an account."
+            "Enter customer identification, domicile information, and initial account deposit."
         )
-        subtitle_label.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        subtitle_label.setStyleSheet("font-size: 13px; color: #64748B;")
 
         header_layout.addWidget(title_label)
         header_layout.addWidget(subtitle_label)
@@ -77,13 +77,13 @@ class OpenAccountView(QWidget):
 
         form_container = QWidget()
         form_layout = QVBoxLayout(form_container)
-        form_layout.setSpacing(16)
+        form_layout.setSpacing(18)
         form_layout.setContentsMargins(0, 0, 16, 0)
 
         # --- Section 1: Customer Personal Details ---
         personal_group = self._create_card("Personal Information")
         personal_form = QFormLayout(personal_group)
-        personal_form.setSpacing(12)
+        personal_form.setSpacing(14)
         personal_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.name_edit = QLineEdit()
@@ -110,7 +110,7 @@ class OpenAccountView(QWidget):
         # --- Section 2: Address Information ---
         address_group = self._create_card("Address Details")
         address_form = QFormLayout(address_group)
-        address_form.setSpacing(12)
+        address_form.setSpacing(14)
         address_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.address_edit = QLineEdit()
@@ -140,7 +140,7 @@ class OpenAccountView(QWidget):
         # --- Section 3: Financial Details ---
         finance_group = self._create_card("Initial Deposit (Optional)")
         finance_form = QFormLayout(finance_group)
-        finance_form.setSpacing(12)
+        finance_form.setSpacing(14)
         finance_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.deposit_edit = QLineEdit()
@@ -154,26 +154,24 @@ class OpenAccountView(QWidget):
 
         # Action Buttons Card
         action_layout = QHBoxLayout()
-        action_layout.setContentsMargins(0, 8, 0, 0)
+        action_layout.setContentsMargins(0, 4, 0, 0)
         action_layout.setSpacing(12)
 
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #38bdf8; font-weight: bold;")
+        self.status_label.setStyleSheet("color: #2563EB; font-weight: 600;")
         action_layout.addWidget(self.status_label)
         action_layout.addStretch()
 
         self.clear_btn = QPushButton("Clear Form")
-        self.clear_btn.setStyleSheet(
-            "padding: 8px 16px; border-radius: 6px; background-color: #334155; color: #f8fafc;"
-        )
+        self.clear_btn.setProperty("class", "SecondaryButton")
+        self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clear_btn.clicked.connect(self._on_clear_clicked)
         action_layout.addWidget(self.clear_btn)
 
         self.submit_btn = QPushButton("Create Account")
         self.submit_btn.setEnabled(False)
-        self.submit_btn.setStyleSheet(
-            "padding: 8px 20px; border-radius: 6px; background-color: #2563eb; color: #ffffff; font-weight: bold;"
-        )
+        self.submit_btn.setProperty("class", "PrimaryButton")
+        self.submit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.submit_btn.clicked.connect(self._on_submit_clicked)
         action_layout.addWidget(self.submit_btn)
 
@@ -185,14 +183,12 @@ class OpenAccountView(QWidget):
 
     def _create_card(self, title: str) -> QFrame:
         card = QFrame()
-        card.setStyleSheet(
-            "QFrame { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; }"
-        )
+        card.setProperty("class", "CardFrame")
         return card
 
     def _create_error_label(self) -> QLabel:
         lbl = QLabel("")
-        lbl.setStyleSheet("color: #f87171; font-size: 11px;")
+        lbl.setStyleSheet("color: #DC2626; font-size: 11px; font-weight: 600;")
         lbl.setVisible(False)
         return lbl
 

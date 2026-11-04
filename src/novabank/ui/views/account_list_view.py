@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from novabank.application.dto.account_dto import AccountDTO
+from novabank.ui.resources.icons import get_icon
 from novabank.ui.viewmodels.account_list_viewmodel import AccountListViewModel
 
 if TYPE_CHECKING:
@@ -28,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class AccountListView(QWidget):
-    """View widget rendering searchable and paginated customer account table."""
+    """Institutional customer account directory rendering searchable and paginated ledger accounts."""
 
     # Emitted when an account row is double-clicked for details inspection
     account_detail_requested = Signal(object)
@@ -64,21 +66,21 @@ class AccountListView(QWidget):
 
     def _setup_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(28, 28, 28, 28)
-        main_layout.setSpacing(16)
+        main_layout.setContentsMargins(28, 24, 28, 28)
+        main_layout.setSpacing(18)
 
-        # Header Section
+        # 1. Header Section
         header_layout = QHBoxLayout()
         header_text_layout = QVBoxLayout()
         header_text_layout.setSpacing(2)
 
         self.title_label = QLabel("Customer Accounts Directory")
-        self.title_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #f8fafc;")
+        self.title_label.setStyleSheet("font-size: 20px; font-weight: 700; color: #172033;")
 
         self.subtitle_label = QLabel(
             "Real-time registry of all customer accounts, balances, and operational statuses."
         )
-        self.subtitle_label.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        self.subtitle_label.setStyleSheet("font-size: 13px; color: #64748B;")
 
         header_text_layout.addWidget(self.title_label)
         header_text_layout.addWidget(self.subtitle_label)
@@ -86,50 +88,47 @@ class AccountListView(QWidget):
         header_layout.addStretch()
 
         self.total_badge = QLabel("0 accounts")
-        self.total_badge.setStyleSheet(
-            "background-color: #1e293b; color: #38bdf8; font-weight: bold; padding: 6px 14px; border-radius: 12px; border: 1px solid #334155;"
-        )
+        self.total_badge.setProperty("class", "StatusIndicatorPill")
         header_layout.addWidget(self.total_badge)
         main_layout.addLayout(header_layout)
 
-        # Search & Filter Toolbar
+        # 2. Search & Filter Toolbar
         toolbar_card = QFrame()
+        toolbar_card.setProperty("class", "CardFrame")
         toolbar_card.setStyleSheet(
-            "QFrame { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 6px 12px; }"
+            "QFrame { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; }"
         )
         toolbar_layout = QHBoxLayout(toolbar_card)
-        toolbar_layout.setContentsMargins(8, 4, 8, 4)
+        toolbar_layout.setContentsMargins(4, 2, 4, 2)
         toolbar_layout.setSpacing(12)
 
-        # Search Bar
+        # Search Bar with icon
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText(
-            "Search by account number, customer name, phone, or city..."
+            "Search by account number, customer name, phone, or location..."
         )
         self.search_edit.setClearButtonEnabled(True)
         self.search_edit.setStyleSheet(
-            "QLineEdit { background-color: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 8px 12px; color: #f8fafc; font-size: 13px; min-width: 340px; }"
+            "QLineEdit { min-width: 320px; padding: 7px 12px; }"
         )
         toolbar_layout.addWidget(self.search_edit, stretch=2)
 
         # Filter Segment Buttons
         filter_label = QLabel("Status:")
-        filter_label.setStyleSheet("color: #94a3b8; font-weight: 500;")
+        filter_label.setStyleSheet("color: #64748B; font-weight: 600; font-size: 12px;")
         toolbar_layout.addWidget(filter_label)
 
         self.filter_group = QButtonGroup(self)
         self.filter_group.setExclusive(True)
 
         self.btn_all = QPushButton("All")
-        self.btn_active = QPushButton("Active Only")
-        self.btn_closed = QPushButton("Closed Only")
+        self.btn_active = QPushButton("Active")
+        self.btn_closed = QPushButton("Closed")
 
         for btn in (self.btn_all, self.btn_active, self.btn_closed):
             btn.setCheckable(True)
-            btn.setStyleSheet(
-                "QPushButton { background-color: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 6px 12px; color: #cbd5e1; }"
-                "QPushButton:checked { background-color: #2563eb; color: #ffffff; border-color: #3b82f6; font-weight: bold; }"
-            )
+            btn.setProperty("class", "SecondaryButton")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
             self.filter_group.addButton(btn)
             toolbar_layout.addWidget(btn)
 
@@ -137,15 +136,23 @@ class AccountListView(QWidget):
 
         # Refresh Button
         self.refresh_btn = QPushButton("Refresh")
-        self.refresh_btn.setStyleSheet(
-            "QPushButton { background-color: #334155; border-radius: 6px; padding: 6px 14px; color: #f8fafc; font-weight: 500; }"
-            "QPushButton:hover { background-color: #475569; }"
-        )
+        self.refresh_btn.setProperty("class", "SecondaryButton")
+        self.refresh_btn.setIcon(get_icon("refresh", color="#172033", size=14))
+        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         toolbar_layout.addWidget(self.refresh_btn)
 
         main_layout.addWidget(toolbar_card)
 
-        # Table Section
+        # 3. Table Section
+        table_container = QFrame()
+        table_container.setProperty("class", "CardFrame")
+        table_container.setStyleSheet(
+            "QFrame { background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0px; }"
+        )
+        tc_layout = QVBoxLayout(table_container)
+        tc_layout.setContentsMargins(0, 0, 0, 0)
+        tc_layout.setSpacing(0)
+
         self.table = QTableWidget()
         self.table.setColumnCount(len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels(self.COLUMNS)
@@ -165,40 +172,35 @@ class AccountListView(QWidget):
         header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
 
-        self.table.setStyleSheet(
-            "QTableWidget { background-color: #0f172a; alternate-background-color: #1e293b; gridline-color: transparent; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; font-size: 13px; }"
-            "QHeaderView::section { background-color: #1e293b; color: #94a3b8; padding: 10px 8px; font-weight: bold; border: none; border-bottom: 2px solid #334155; }"
-            "QTableWidget::item { padding: 8px; }"
-            "QTableWidget::item:selected { background-color: #1d4ed8; color: #ffffff; }"
-        )
-        main_layout.addWidget(self.table, stretch=1)
+        tc_layout.addWidget(self.table)
+        main_layout.addWidget(table_container, stretch=1)
 
-        # Pagination & Status Footer
+        # 4. Pagination & Status Footer
         footer_layout = QHBoxLayout()
-        footer_layout.setContentsMargins(0, 4, 0, 0)
+        footer_layout.setContentsMargins(4, 4, 4, 0)
         footer_layout.setSpacing(12)
 
         self.loading_indicator = QLabel("")
-        self.loading_indicator.setStyleSheet("color: #38bdf8; font-weight: 500;")
+        self.loading_indicator.setStyleSheet("color: #2563EB; font-weight: 500;")
         footer_layout.addWidget(self.loading_indicator)
         footer_layout.addStretch()
 
-        self.prev_btn = QPushButton("◀ Previous")
+        self.prev_btn = QPushButton("Previous")
+        self.prev_btn.setProperty("class", "SecondaryButton")
+        self.prev_btn.setIcon(get_icon("chevron_left", color="#172033", size=14))
         self.prev_btn.setEnabled(False)
-        self.prev_btn.setStyleSheet(
-            "padding: 6px 14px; border-radius: 6px; background-color: #1e293b; border: 1px solid #334155; color: #cbd5e1;"
-        )
+        self.prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         footer_layout.addWidget(self.prev_btn)
 
         self.page_info_label = QLabel("Page 1 of 1")
-        self.page_info_label.setStyleSheet("color: #94a3b8; font-weight: 500;")
+        self.page_info_label.setStyleSheet("color: #64748B; font-weight: 600; font-size: 12px;")
         footer_layout.addWidget(self.page_info_label)
 
-        self.next_btn = QPushButton("Next ▶")
+        self.next_btn = QPushButton("Next")
+        self.next_btn.setProperty("class", "SecondaryButton")
+        self.next_btn.setIcon(get_icon("chevron_right", color="#172033", size=14))
         self.next_btn.setEnabled(False)
-        self.next_btn.setStyleSheet(
-            "padding: 6px 14px; border-radius: 6px; background-color: #1e293b; border: 1px solid #334155; color: #cbd5e1;"
-        )
+        self.next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         footer_layout.addWidget(self.next_btn)
 
         main_layout.addLayout(footer_layout)
@@ -251,6 +253,7 @@ class AccountListView(QWidget):
             acc_num = f"{acc.account_number[:4]}-{acc.account_number[4:8]}-{acc.account_number[8:]}"
             item_num = QTableWidgetItem(acc_num)
             item_num.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            item_num.setFont(QFont("Consolas", 10))
             self.table.setItem(row, 0, item_num)
 
             # 2. Customer Name
@@ -283,6 +286,7 @@ class AccountListView(QWidget):
             item_balance.setTextAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
+            item_balance.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
             self.table.setItem(row, 5, item_balance)
 
             # 7. Created Date

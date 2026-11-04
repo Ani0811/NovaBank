@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from novabank.application.dto.account_dto import AccountDTO
+from novabank.ui.resources.icons import get_icon
 from novabank.ui.viewmodels.account_detail_viewmodel import AccountDetailViewModel
 from novabank.ui.views.account_close_dialog import AccountCloseDialog
 
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class AccountDetailView(QWidget):
-    """View widget for inspecting and modifying customer account details."""
+    """Institutional view widget for inspecting and modifying customer account details."""
 
     # Navigation signal to return to accounts directory
     back_requested = Signal()
@@ -51,24 +52,22 @@ class AccountDetailView(QWidget):
 
     def _setup_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(28, 28, 28, 28)
+        main_layout.setContentsMargins(28, 24, 28, 28)
         main_layout.setSpacing(16)
 
         # 1. Navigation Header
         top_bar = QHBoxLayout()
-        self.back_btn = QPushButton("← Back to Accounts")
-        self.back_btn.setStyleSheet(
-            "QPushButton { background-color: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 6px 14px; color: #cbd5e1; font-weight: 500; }"
-            "QPushButton:hover { background-color: #334155; color: #ffffff; }"
-        )
+        self.back_btn = QPushButton("Back to Accounts")
+        self.back_btn.setProperty("class", "SecondaryButton")
+        self.back_btn.setIcon(get_icon("arrow_left", color="#172033", size=14))
+        self.back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.back_btn.clicked.connect(self.back_requested.emit)
         top_bar.addWidget(self.back_btn)
         top_bar.addStretch()
 
         self.status_badge = QLabel("● Active")
-        self.status_badge.setStyleSheet(
-            "background-color: #064e3b; color: #34d399; font-weight: bold; padding: 6px 14px; border-radius: 12px; border: 1px solid #059669;"
-        )
+        self.status_badge.setProperty("class", "StatusIndicatorPill")
+        self.status_badge.setProperty("status", "success")
         top_bar.addWidget(self.status_badge)
         main_layout.addLayout(top_bar)
 
@@ -76,11 +75,11 @@ class AccountDetailView(QWidget):
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
         self.holder_title = QLabel("Customer Profile")
-        self.holder_title.setStyleSheet("font-size: 24px; font-weight: bold; color: #f8fafc;")
+        self.holder_title.setStyleSheet("font-size: 22px; font-weight: 700; color: #172033;")
 
         self.account_num_subtitle = QLabel("Account: ----")
         self.account_num_subtitle.setStyleSheet(
-            "font-size: 13px; color: #94a3b8; font-family: monospace;"
+            "font-size: 13px; color: #64748B; font-family: Consolas, monospace;"
         )
         title_box.addWidget(self.holder_title)
         title_box.addWidget(self.account_num_subtitle)
@@ -95,16 +94,16 @@ class AccountDetailView(QWidget):
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 16, 0)
-        content_layout.setSpacing(16)
+        content_layout.setSpacing(18)
 
         # 2. KPI Summary Cards
         kpi_layout = QHBoxLayout()
-        kpi_layout.setSpacing(12)
+        kpi_layout.setSpacing(14)
 
-        self.balance_card = self._create_kpi_card("Current Balance", "$0.00 USD", "#10b981")
-        self.currency_card = self._create_kpi_card("Currency", "USD", "#38bdf8")
-        self.opened_card = self._create_kpi_card("Opened Date", "----", "#94a3b8")
-        self.version_card = self._create_kpi_card("Ledger Version", "v1", "#94a3b8")
+        self.balance_card = self._create_kpi_card("Current Balance", "$0.00 USD", "#15803D")
+        self.currency_card = self._create_kpi_card("Currency", "USD", "#2563EB")
+        self.opened_card = self._create_kpi_card("Opened Date", "----", "#172033")
+        self.version_card = self._create_kpi_card("Ledger Version", "v1", "#64748B")
 
         kpi_layout.addWidget(self.balance_card)
         kpi_layout.addWidget(self.currency_card)
@@ -115,26 +114,20 @@ class AccountDetailView(QWidget):
         # 3. Read-only Identity Section
         identity_group = self._create_card_container("Core Identity Information (Immutable)")
         identity_form = QFormLayout(identity_group)
-        identity_form.setSpacing(10)
+        identity_form.setSpacing(12)
         identity_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.display_acc_edit = QLineEdit()
         self.display_acc_edit.setReadOnly(True)
-        self.display_acc_edit.setStyleSheet(
-            "background-color: #0f172a; color: #94a3b8; border: 1px solid #334155; font-family: monospace;"
-        )
+        self.display_acc_edit.setStyleSheet("font-family: Consolas, monospace; background-color: #F8FAFC;")
 
         self.display_name_edit = QLineEdit()
         self.display_name_edit.setReadOnly(True)
-        self.display_name_edit.setStyleSheet(
-            "background-color: #0f172a; color: #94a3b8; border: 1px solid #334155;"
-        )
+        self.display_name_edit.setStyleSheet("background-color: #F8FAFC;")
 
         self.display_dob_edit = QLineEdit()
         self.display_dob_edit.setReadOnly(True)
-        self.display_dob_edit.setStyleSheet(
-            "background-color: #0f172a; color: #94a3b8; border: 1px solid #334155;"
-        )
+        self.display_dob_edit.setStyleSheet("background-color: #F8FAFC;")
 
         identity_form.addRow("Account Number:", self.display_acc_edit)
         identity_form.addRow("Legal Holder Name:", self.display_name_edit)
@@ -144,7 +137,7 @@ class AccountDetailView(QWidget):
         # 4. Editable Contact Section
         contact_group = self._create_card_container("Contact & Address Information (Editable)")
         contact_form = QFormLayout(contact_group)
-        contact_form.setSpacing(10)
+        contact_form.setSpacing(12)
         contact_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.phone_edit = QLineEdit()
@@ -176,32 +169,25 @@ class AccountDetailView(QWidget):
         action_layout.setSpacing(12)
 
         self.op_status_label = QLabel("")
-        self.op_status_label.setStyleSheet("color: #38bdf8; font-weight: 500;")
+        self.op_status_label.setStyleSheet("color: #2563EB; font-weight: 500;")
         action_layout.addWidget(self.op_status_label)
         action_layout.addStretch()
 
         self.close_btn = QPushButton("Close Account")
-        self.close_btn.setStyleSheet(
-            "QPushButton { background-color: #7f1d1d; border: 1px solid #991b1b; color: #fecaca; border-radius: 6px; padding: 8px 16px; font-weight: bold; }"
-            "QPushButton:hover { background-color: #991b1b; color: #ffffff; }"
-        )
+        self.close_btn.setProperty("class", "DangerButton")
+        self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_btn.clicked.connect(self._on_close_clicked)
         action_layout.addWidget(self.close_btn)
 
         self.discard_btn = QPushButton("Discard Changes")
-        self.discard_btn.setStyleSheet(
-            "QPushButton { background-color: #334155; border-radius: 6px; padding: 8px 16px; color: #cbd5e1; }"
-            "QPushButton:hover { background-color: #475569; }"
-        )
+        self.discard_btn.setProperty("class", "SecondaryButton")
+        self.discard_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.discard_btn.clicked.connect(self.vm.reset_edits)
         action_layout.addWidget(self.discard_btn)
 
         self.save_btn = QPushButton("Save Changes")
-        self.save_btn.setStyleSheet(
-            "QPushButton { background-color: #2563eb; border-radius: 6px; padding: 8px 20px; color: #ffffff; font-weight: bold; }"
-            "QPushButton:hover { background-color: #1d4ed8; }"
-            "QPushButton:disabled { background-color: #1e293b; color: #64748b; }"
-        )
+        self.save_btn.setProperty("class", "PrimaryButton")
+        self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.clicked.connect(self._on_save_clicked)
         action_layout.addWidget(self.save_btn)
 
@@ -213,20 +199,16 @@ class AccountDetailView(QWidget):
 
     def _create_kpi_card(self, title: str, default_val: str, color_hex: str) -> QFrame:
         card = QFrame()
-        card.setStyleSheet(
-            "QFrame { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; min-width: 140px; }"
-        )
+        card.setProperty("class", "CardFrame")
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(4)
 
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(
-            "color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: bold;"
-        )
+        title_lbl.setProperty("class", "CardTitle")
         val_lbl = QLabel(default_val)
         val_lbl.setObjectName(f"kpi_{title.replace(' ', '_').lower()}")
-        val_lbl.setStyleSheet(f"color: {color_hex}; font-size: 18px; font-weight: bold;")
+        val_lbl.setStyleSheet(f"color: {color_hex}; font-size: 18px; font-weight: 700;")
 
         layout.addWidget(title_lbl)
         layout.addWidget(val_lbl)
@@ -234,14 +216,12 @@ class AccountDetailView(QWidget):
 
     def _create_card_container(self, title: str) -> QFrame:
         frame = QFrame()
-        frame.setStyleSheet(
-            "QFrame { background-color: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 14px; }"
-        )
+        frame.setProperty("class", "CardFrame")
         return frame
 
     def _create_error_label(self) -> QLabel:
         lbl = QLabel("")
-        lbl.setStyleSheet("color: #f87171; font-size: 11px;")
+        lbl.setStyleSheet("color: #DC2626; font-size: 11px; font-weight: 600;")
         lbl.setVisible(False)
         return lbl
 
@@ -296,16 +276,15 @@ class AccountDetailView(QWidget):
         # Status badge
         if acc.is_active:
             self.status_badge.setText("● Active")
-            self.status_badge.setStyleSheet(
-                "background-color: #064e3b; color: #34d399; font-weight: bold; padding: 6px 14px; border-radius: 12px; border: 1px solid #059669;"
-            )
+            self.status_badge.setProperty("status", "success")
             self.close_btn.setEnabled(True)
         else:
             self.status_badge.setText("○ Closed")
-            self.status_badge.setStyleSheet(
-                "background-color: #450a0a; color: #f87171; font-weight: bold; padding: 6px 14px; border-radius: 12px; border: 1px solid #dc2626;"
-            )
+            self.status_badge.setProperty("status", "danger")
             self.close_btn.setEnabled(False)
+
+        self.status_badge.style().unpolish(self.status_badge)
+        self.status_badge.style().polish(self.status_badge)
 
         # Identity fields
         self.display_acc_edit.setText(formatted_num)
