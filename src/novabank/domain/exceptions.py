@@ -78,3 +78,33 @@ class SelfTransferError(DomainError):
         msg = f"Cannot transfer funds to the same account: {account_number}."
         super().__init__(msg)
         self.account_number = account_number
+
+
+class PaymentGatewayError(DomainError):
+    """Base error for payment gateway and merchant processing exceptions."""
+
+
+class PaymentDeclinedError(PaymentGatewayError):
+    """Raised when a gateway transaction is declined by the issuer or card network."""
+
+    def __init__(self, reason: str, code: str = "DECLINED") -> None:
+        super().__init__(f"Payment declined ({code}): {reason}")
+        self.reason = reason
+        self.code = code
+
+
+class DuplicateIdempotencyKeyError(PaymentGatewayError):
+    """Raised when an identical idempotency key is submitted for a new transaction."""
+
+    def __init__(self, key: str) -> None:
+        super().__init__(f"Duplicate payment idempotency key: '{key}'")
+        self.key = key
+
+
+class PaymentAlreadySettledError(PaymentGatewayError):
+    """Raised when attempting an illegal mutation on an already settled payment."""
+
+
+class PaymentRefundError(PaymentGatewayError):
+    """Raised when refunding a payment violates business rules or exceeds captured amount."""
+

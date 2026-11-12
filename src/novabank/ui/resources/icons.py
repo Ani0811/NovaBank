@@ -55,6 +55,10 @@ LUCIDE_SVGS: dict[str, str] = {
         '<path d="M16 13H8"/>'
         '<path d="M16 17H8"/>'
     ),
+    "credit_card": (
+        '<rect width="20" height="14" x="2" y="5" rx="2"/>'
+        '<line x1="2" x2="22" y1="10" y2="10"/>'
+    ),
     "audit_logs": (
         '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>'
         '<path d="m9 12 2 2 4-4"/>'

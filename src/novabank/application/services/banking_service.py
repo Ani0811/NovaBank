@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import uuid
 from datetime import date, datetime, time, timezone
@@ -17,6 +18,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from novabank.application.dto.account_dto import AccountDTO, OpenAccountResultDTO
 from novabank.application.dto.beneficiary_dto import BeneficiaryDTO
+from novabank.application.dto.payment_dto import (
+    PaymentRefundResultDTO,
+    PaymentRequestDTO,
+    PaymentTransactionDTO,
+)
 from novabank.application.dto.transaction_dto import TransactionDTO, TransferResultDTO
 from novabank.application.events import (
     AccountClosedEvent,
@@ -27,26 +33,41 @@ from novabank.application.events import (
     BeneficiaryRemovedEvent,
     DepositCompletedEvent,
     InterestAccruedEvent,
+    PaymentDeclinedEvent,
+    PaymentProcessedEvent,
+    PaymentRefundedEvent,
     ProfileUpdatedEvent,
     TransferCompletedEvent,
     WithdrawalCompletedEvent,
 )
 from novabank.domain.entities.account import Account
 from novabank.domain.entities.beneficiary import Beneficiary
+from novabank.domain.entities.payment import (
+    PaymentChannel,
+    PaymentDirection,
+    PaymentStatus,
+    PaymentTransaction,
+)
 from novabank.domain.exceptions import (
     AccountClosedError,
     AccountFrozenError,
     AccountNotFoundError,
     CurrencyMismatchError,
+    DuplicateIdempotencyKeyError,
+    InsufficientFundsError,
     InvalidAmountError,
+    PaymentDeclinedError,
+    PaymentRefundError,
     SelfTransferError,
 )
 from novabank.domain.services.interest_calculator import InterestCalculator
 from novabank.domain.value_objects.account_number import AccountNumber
 from novabank.domain.value_objects.money import Money
 from novabank.domain.value_objects.transaction_type import TransactionType
+from novabank.infrastructure.gateways.payment_rails_simulator import PaymentRailsSimulator
 from novabank.infrastructure.repositories.sql_account_repository import SQLAccountRepository
 from novabank.infrastructure.repositories.sql_beneficiary_repository import SQLBeneficiaryRepository
+from novabank.infrastructure.repositories.sql_payment_repository import SQLPaymentRepository
 from novabank.infrastructure.repositories.sql_transaction_repository import SQLTransactionRepository
 
 logger = logging.getLogger(__name__)
@@ -1034,3 +1055,324 @@ class BankingService:
             self._emit(event)
 
         return credited_dtos
+
+    def process_gateway_payment(
+        self,
+        request: PaymentRequestDTO,
+        actor: str = "gateway",
+    ) -> PaymentTransactionDTO:
+        """Process external payment ingestion (Card, ACH, FedNow, Wire) with atomic ledger settlement."""
+        acc_str = str(request.account_number).strip().replace("-", "").replace(" ", "")
+
+        # 1. Parse amount & channel
+        if not isinstance(request.amount, Decimal) or request.amount <= Decimal("0.00"):
+            raise InvalidAmountError(f"Payment amount must be positive, got: {request.amount}")
+
+        try:
+            channel_enum = PaymentChannel(request.channel.strip().upper())
+        except ValueError:
+            raise DomainError(f"Unsupported payment channel: '{request.channel}'")
+
+        gross_money = Money(request.amount)
+        idemp_key = request.idempotency_key or f"IDEMP-{uuid.uuid4().hex[:16]}"
+
+        # 2. Check Idempotency
+        with self._session_factory() as session:
+            pay_repo = SQLPaymentRepository(session)
+            existing = pay_repo.get_by_idempotency_key(idemp_key)
+            if existing is not None:
+                if existing.status == PaymentStatus.SETTLED:
+                    return PaymentTransactionDTO.from_entity(existing)
+                raise DuplicateIdempotencyKeyError(idemp_key)
+
+        # 3. Verify Account Exists & Active
+        with self._session_factory() as session:
+            acc_repo = SQLAccountRepository(session)
+            account_preview = acc_repo.get_by_number(acc_str)
+            if account_preview is None:
+                raise AccountNotFoundError(acc_str)
+            if not account_preview.is_active:
+                raise AccountClosedError(acc_str)
+            if account_preview.is_frozen:
+                raise AccountFrozenError(acc_str, "Account risk hold in effect")
+
+        # 4. Calculate Fee and Identify Card Details
+        fee_money = PaymentRailsSimulator.calculate_interchange_fee(channel_enum, gross_money)
+        card_brand: Optional[str] = None
+        last4: Optional[str] = None
+
+        if channel_enum == PaymentChannel.CARD and request.card_number:
+            clean_card = re.sub(r"\D", "", request.card_number)
+            card_brand = PaymentRailsSimulator.detect_card_brand(clean_card)
+            last4 = clean_card[-4:] if len(clean_card) >= 4 else "0000"
+
+        # 5. Process Network Clearance
+        approved, auth_code, decline_reason = PaymentRailsSimulator.process_authorization(
+            channel=channel_enum,
+            amount=gross_money,
+            card_number=request.card_number,
+            card_exp=request.card_exp,
+            card_cvv=request.card_cvv,
+            routing_number=request.routing_number,
+        )
+
+        payment_id = f"PAY-{uuid.uuid4().hex[:12].upper()}"
+
+        if not approved:
+            # Record decline
+            declined_payment = PaymentTransaction(
+                payment_id=payment_id,
+                account_number=AccountNumber(acc_str),
+                channel=channel_enum,
+                direction=PaymentDirection.INBOUND,
+                amount=gross_money,
+                fee=fee_money,
+                status=PaymentStatus.DECLINED,
+                merchant_name=request.merchant_name,
+                customer_name=request.customer_name,
+                idempotency_key=idemp_key,
+                card_brand=card_brand,
+                last4=last4,
+                description=request.description or f"{channel_enum.value} Payment Attempt",
+                failure_reason=decline_reason,
+            )
+            with self._session_factory() as session:
+                with session.begin():
+                    SQLPaymentRepository(session).save(declined_payment)
+
+            self._emit(
+                PaymentDeclinedEvent(
+                    payment_id=payment_id,
+                    account_number=acc_str,
+                    amount=gross_money.amount,
+                    reason=decline_reason or "Card issuer declined payment",
+                    timestamp=declined_payment.created_at,
+                    actor=actor,
+                )
+            )
+            raise PaymentDeclinedError(decline_reason or "Card issuer declined payment")
+
+        # 6. Atomic Core Ledger Settlement
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    acc_repo = SQLAccountRepository(session)
+                    tx_repo = SQLTransactionRepository(session)
+                    pay_repo = SQLPaymentRepository(session)
+
+                    account = acc_repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+                    if not account.is_active:
+                        raise AccountClosedError(acc_str)
+                    if account.is_frozen:
+                        raise AccountFrozenError(acc_str)
+
+                    # Inbound merchant settlement: Net settlement = Gross - Interchange Fee
+                    net_settlement = gross_money - fee_money
+
+                    tx_entity = account.credit(
+                        amount=net_settlement,
+                        transaction_type=TransactionType.DEPOSIT,
+                        description=(
+                            f"Gateway Settlement ({channel_enum.value}): {request.merchant_name} "
+                            f"(Gross: ${gross_money.amount:,.2f}, Fee: ${fee_money.amount:,.2f})"
+                        ),
+                        ref=f"GW-{uuid.uuid4().hex[:12].upper()}",
+                        actor=actor,
+                    )
+                    acc_repo.save(account)
+                    tx_repo.append(tx_entity)
+
+                    payment = PaymentTransaction(
+                        payment_id=payment_id,
+                        account_number=AccountNumber(acc_str),
+                        channel=channel_enum,
+                        direction=PaymentDirection.INBOUND,
+                        amount=gross_money,
+                        fee=fee_money,
+                        status=PaymentStatus.SETTLED,
+                        merchant_name=request.merchant_name,
+                        customer_name=request.customer_name,
+                        idempotency_key=idemp_key,
+                        card_brand=card_brand,
+                        last4=last4,
+                        description=request.description or f"{channel_enum.value} Gateway Settlement",
+                        settled_at=datetime.now(timezone.utc),
+                    )
+                    pay_repo.save(payment)
+                    dto = PaymentTransactionDTO.from_entity(payment)
+
+                    event = PaymentProcessedEvent(
+                        payment_id=payment.payment_id,
+                        account_number=acc_str,
+                        channel=channel_enum.value,
+                        amount=gross_money.amount,
+                        fee=fee_money.amount,
+                        net_amount=net_settlement.amount,
+                        merchant_name=request.merchant_name,
+                        timestamp=payment.created_at,
+                        actor=actor,
+                    )
+
+        self._emit(event)
+        return dto
+
+    def refund_gateway_payment(
+        self,
+        payment_id: str,
+        reason: str = "Customer requested refund",
+        actor: str = "teller",
+    ) -> PaymentRefundResultDTO:
+        """Issue full reversal and refund against an established settled gateway transaction."""
+        clean_id = payment_id.strip()
+
+        with self._session_factory() as session:
+            pay_repo = SQLPaymentRepository(session)
+            payment = pay_repo.get_by_id(clean_id)
+            if payment is None:
+                raise PaymentRefundError(f"Payment transaction '{clean_id}' does not exist.")
+            if payment.status != PaymentStatus.SETTLED:
+                raise PaymentRefundError(
+                    f"Only settled payments can be refunded. Current status is {payment.status.value}."
+                )
+            acc_str = payment.account_number.value
+            net_amt = payment.net_amount
+
+        # Atomic debit reversal from account
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    acc_repo = SQLAccountRepository(session)
+                    tx_repo = SQLTransactionRepository(session)
+                    pay_repo = SQLPaymentRepository(session)
+
+                    account = acc_repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+                    if not account.is_active:
+                        raise AccountClosedError(acc_str)
+                    if account.is_frozen:
+                        raise AccountFrozenError(acc_str)
+
+                    if account.balance < net_amt:
+                        raise InsufficientFundsError(
+                            current_balance=str(account.balance),
+                            requested_amount=str(net_amt),
+                        )
+
+                    tx_entity = account.debit(
+                        amount=net_amt,
+                        transaction_type=TransactionType.WITHDRAWAL,
+                        description=f"Gateway Refund ({payment.payment_id}): {reason}",
+                        ref=f"REF-{uuid.uuid4().hex[:12].upper()}",
+                        actor=actor,
+                    )
+                    acc_repo.save(account)
+                    tx_repo.append(tx_entity)
+
+                    payment.refund(reason=reason)
+                    pay_repo.save(payment)
+
+                    now = datetime.now(timezone.utc)
+                    result_dto = PaymentRefundResultDTO(
+                        payment_id=payment.payment_id,
+                        account_number=acc_str,
+                        refunded_amount=net_amt.amount,
+                        refund_reason=reason,
+                        status="REFUNDED",
+                        timestamp=now,
+                    )
+
+                    event = PaymentRefundedEvent(
+                        payment_id=payment.payment_id,
+                        account_number=acc_str,
+                        refund_amount=net_amt.amount,
+                        reason=reason,
+                        timestamp=now,
+                        actor=actor,
+                    )
+
+        self._emit(event)
+        return result_dto
+
+    def list_gateway_payments(
+        self,
+        account_number: Optional[Union[AccountNumber, str]] = None,
+        channel: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[PaymentTransactionDTO], int]:
+        """Query paginated payment transactions with optional filters."""
+        offset = max(0, (page - 1) * page_size)
+        with self._session_factory() as session:
+            pay_repo = SQLPaymentRepository(session)
+            entities, total_count = pay_repo.list_payments(
+                account_number=account_number,
+                channel=channel,
+                status=status,
+                limit=page_size,
+                offset=offset,
+            )
+            return [PaymentTransactionDTO.from_entity(e) for e in entities], total_count
+
+    def get_gateway_payment(self, payment_id: str) -> Optional[PaymentTransactionDTO]:
+        """Fetch a specific payment transaction record by payment_id."""
+        with self._session_factory() as session:
+            pay_repo = SQLPaymentRepository(session)
+            entity = pay_repo.get_by_id(payment_id)
+            return PaymentTransactionDTO.from_entity(entity) if entity is not None else None
+
+    def export_payments_csv(
+        self,
+        payments: Sequence[PaymentTransactionDTO],
+        destination: Optional[Union[str, Path, TextIO]] = None,
+        *,
+        encoding: str = "utf-8",
+        sanitize_formulas: bool = True,
+    ) -> str:
+        """Export gateway payment records directly to RFC-4180 CSV."""
+        import csv
+        import io
+        from novabank.application.services.export_service import ExportService
+
+        string_buffer = io.StringIO()
+        writer = csv.writer(string_buffer, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
+
+        headers = [
+            "Payment ID",
+            "Date",
+            "Account",
+            "Channel",
+            "Merchant",
+            "Customer",
+            "Gross Amount",
+            "Fee",
+            "Net Settled",
+            "Status",
+            "Card/Routing",
+            "Description",
+        ]
+        writer.writerow(headers)
+
+        for p in payments:
+            card_info = f"{p.card_brand or 'Card'} ...{p.last4}" if p.last4 else p.channel
+            row = [
+                ExportService.sanitize_field(p.payment_id, sanitize_formulas),
+                p.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                p.account_number,
+                p.channel,
+                ExportService.sanitize_field(p.merchant_name, sanitize_formulas),
+                ExportService.sanitize_field(p.customer_name, sanitize_formulas),
+                f"{p.amount:.2f}",
+                f"{p.fee:.2f}",
+                f"{p.net_amount:.2f}",
+                p.status,
+                card_info,
+                ExportService.sanitize_field(p.description, sanitize_formulas),
+            ]
+            writer.writerow(row)
+
+        csv_content = string_buffer.getvalue()
+        return ExportService._deliver_output(csv_content, destination, encoding)

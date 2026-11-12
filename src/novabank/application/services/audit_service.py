@@ -18,6 +18,9 @@ from novabank.application.events import (
     BeneficiaryRemovedEvent,
     DepositCompletedEvent,
     InterestAccruedEvent,
+    PaymentDeclinedEvent,
+    PaymentProcessedEvent,
+    PaymentRefundedEvent,
     ProfileUpdatedEvent,
     TransferCompletedEvent,
     WithdrawalCompletedEvent,
@@ -39,6 +42,9 @@ class AuditService:
     EVENT_BENEFICIARY_ADDED = "BENEFICIARY_ADDED"
     EVENT_BENEFICIARY_REMOVED = "BENEFICIARY_REMOVED"
     EVENT_INTEREST_ACCRUED = "INTEREST_ACCRUED"
+    EVENT_PAYMENT_PROCESSED = "PAYMENT_PROCESSED"
+    EVENT_PAYMENT_REFUNDED = "PAYMENT_REFUNDED"
+    EVENT_PAYMENT_DECLINED = "PAYMENT_DECLINED"
 
     def __init__(
         self, session_factory: Union[sessionmaker[Session], Callable[[], Session]]
@@ -219,6 +225,51 @@ class AuditService:
                     "accounts_credited": event.accounts_credited,
                     "total_interest_credited": str(event.total_interest_credited),
                     "annual_rate_percentage": str(event.annual_rate_percentage),
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, PaymentProcessedEvent):
+            return self.record_event(
+                event_type=self.EVENT_PAYMENT_PROCESSED,
+                entity_type="PAYMENT",
+                entity_id=event.payment_id,
+                actor=event.actor,
+                payload={
+                    "account_number": event.account_number,
+                    "channel": event.channel,
+                    "amount": str(event.amount),
+                    "fee": str(event.fee),
+                    "net_amount": str(event.net_amount),
+                    "merchant_name": event.merchant_name,
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, PaymentRefundedEvent):
+            return self.record_event(
+                event_type=self.EVENT_PAYMENT_REFUNDED,
+                entity_type="PAYMENT",
+                entity_id=event.payment_id,
+                actor=event.actor,
+                payload={
+                    "account_number": event.account_number,
+                    "refund_amount": str(event.refund_amount),
+                    "reason": event.reason,
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, PaymentDeclinedEvent):
+            return self.record_event(
+                event_type=self.EVENT_PAYMENT_DECLINED,
+                entity_type="PAYMENT",
+                entity_id=event.payment_id,
+                actor=event.actor,
+                payload={
+                    "account_number": event.account_number,
+                    "amount": str(event.amount),
+                    "reason": event.reason,
                 },
                 timestamp=event.timestamp,
             )

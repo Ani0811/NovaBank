@@ -140,3 +140,43 @@ class InterestAccruedEvent:
     actor: str = "system"
 
 
+@dataclass(frozen=True)
+class PaymentProcessedEvent:
+    """Emitted upon successful authorization and settlement of a gateway payment."""
+
+    payment_id: str
+    account_number: str
+    channel: str
+    amount: Decimal
+    fee: Decimal
+    net_amount: Decimal
+    merchant_name: str
+    timestamp: datetime
+    actor: str = "gateway"
+
+
+@dataclass(frozen=True)
+class PaymentRefundedEvent:
+    """Emitted upon executing a full or partial refund against a settled transaction."""
+
+    payment_id: str
+    account_number: str
+    refund_amount: Decimal
+    reason: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class PaymentDeclinedEvent:
+    """Emitted upon issuer or network decline of a payment request."""
+
+    payment_id: str
+    account_number: str
+    amount: Decimal
+    reason: str
+    timestamp: datetime
+    actor: str = "gateway"
+
+
+

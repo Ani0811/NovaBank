@@ -24,6 +24,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from novabank.domain.entities.account import Account
 from novabank.domain.entities.beneficiary import Beneficiary
+from novabank.domain.entities.payment import (
+    PaymentChannel,
+    PaymentDirection,
+    PaymentStatus,
+    PaymentTransaction,
+)
 from novabank.domain.entities.transaction import Transaction
 from novabank.domain.value_objects.account_number import AccountNumber
 from novabank.domain.value_objects.money import Money
@@ -277,3 +283,86 @@ class BeneficiaryModel(Base):
             bank_name=entity.bank_name,
             created_at=entity.created_at,
         )
+
+
+class PaymentTransactionModel(Base):
+    """Relational model for payment gateway authorizations and settlements."""
+
+    __tablename__ = "payment_transactions"
+
+    payment_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_number: Mapped[str] = mapped_column(
+        String(12), ForeignKey("accounts.account_number", ondelete="CASCADE"), nullable=False
+    )
+    channel: Mapped[str] = mapped_column(String(20), nullable=False)
+    direction: Mapped[str] = mapped_column(String(20), default="INBOUND", nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
+    fee: Mapped[Decimal] = mapped_column(Numeric(15, 2), default=Decimal("0.00"), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="AUTHORIZED", nullable=False)
+    merchant_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    customer_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    card_brand: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    last4: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
+    description: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    failure_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    refund_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    settled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("idx_payment_account", "account_number"),
+        Index("idx_payment_status", "status"),
+        Index("idx_payment_created", "created_at"),
+        Index("idx_payment_idempotency", "idempotency_key"),
+    )
+
+    def to_entity(self) -> PaymentTransaction:
+        """Convert ORM model to pure Domain PaymentTransaction entity."""
+        return PaymentTransaction(
+            payment_id=self.payment_id,
+            account_number=AccountNumber(self.account_number),
+            channel=PaymentChannel(self.channel),
+            direction=PaymentDirection(self.direction),
+            amount=Money(self.amount, currency=self.currency),
+            fee=Money(self.fee, currency=self.currency),
+            status=PaymentStatus(self.status),
+            merchant_name=self.merchant_name,
+            customer_name=self.customer_name,
+            idempotency_key=self.idempotency_key,
+            card_brand=self.card_brand,
+            last4=self.last4,
+            description=self.description,
+            created_at=self.created_at,
+            settled_at=self.settled_at,
+            failure_reason=self.failure_reason,
+            refund_reason=self.refund_reason,
+        )
+
+    @classmethod
+    def from_entity(cls, entity: PaymentTransaction) -> PaymentTransactionModel:
+        """Construct ORM model from pure Domain PaymentTransaction entity."""
+        return cls(
+            payment_id=entity.payment_id,
+            account_number=entity.account_number.value,
+            channel=entity.channel.value,
+            direction=entity.direction.value,
+            amount=entity.amount.amount,
+            fee=entity.fee.amount,
+            currency=entity.amount.currency,
+            status=entity.status.value,
+            merchant_name=entity.merchant_name,
+            customer_name=entity.customer_name,
+            idempotency_key=entity.idempotency_key,
+            card_brand=entity.card_brand,
+            last4=entity.last4,
+            description=entity.description,
+            failure_reason=entity.failure_reason,
+            refund_reason=entity.refund_reason,
+            created_at=entity.created_at,
+            settled_at=entity.settled_at,
+        )
+
