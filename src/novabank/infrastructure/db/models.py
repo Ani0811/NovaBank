@@ -18,10 +18,12 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from novabank.domain.entities.account import Account
+from novabank.domain.entities.beneficiary import Beneficiary
 from novabank.domain.entities.transaction import Transaction
 from novabank.domain.value_objects.account_number import AccountNumber
 from novabank.domain.value_objects.money import Money
@@ -46,6 +48,7 @@ class AccountModel(Base):
     country: Mapped[str] = mapped_column(String(100), nullable=False)
     phone_number: Mapped[str] = mapped_column(String(15), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_frozen: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     balance: Mapped[Decimal] = mapped_column(
         Numeric(15, 2, asdecimal=True), default=Decimal("0.00"), nullable=False
     )
@@ -87,6 +90,7 @@ class AccountModel(Base):
             country=self.country,
             phone_number=self.phone_number,
             is_active=self.is_active,
+            is_frozen=self.is_frozen,
             balance=Money(self.balance, currency=self.currency, allow_negative=False),
             version=self.version,
             created_at=self.created_at,
@@ -106,6 +110,7 @@ class AccountModel(Base):
             country=entity.country,
             phone_number=entity.phone_number,
             is_active=entity.is_active,
+            is_frozen=entity.is_frozen,
             balance=entity.balance.amount,
             currency=entity.balance.currency,
             version=entity.version,
@@ -123,6 +128,7 @@ class AccountModel(Base):
         self.country = entity.country
         self.phone_number = entity.phone_number
         self.is_active = entity.is_active
+        self.is_frozen = entity.is_frozen
         self.balance = entity.balance.amount
         self.currency = entity.balance.currency
         self.version = entity.version
@@ -217,3 +223,57 @@ class AuditEventModel(Base):
         Index("idx_audit_entity", "entity_type", "entity_id"),
         Index("idx_audit_timestamp", "timestamp"),
     )
+
+
+class BeneficiaryModel(Base):
+    """Relational model for frequent payee contacts and transfer beneficiaries."""
+
+    __tablename__ = "beneficiaries"
+
+    beneficiary_id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
+    )
+    source_account_number: Mapped[str] = mapped_column(
+        String(12), ForeignKey("accounts.account_number", ondelete="CASCADE"), nullable=False
+    )
+    destination_account_number: Mapped[str] = mapped_column(
+        String(12), ForeignKey("accounts.account_number", ondelete="CASCADE"), nullable=False
+    )
+    destination_holder_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    nickname: Mapped[str] = mapped_column(String(50), nullable=False)
+    bank_name: Mapped[str] = mapped_column(String(100), default="NovaBank", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source_account_number", "destination_account_number", name="uq_beneficiary_source_dest"
+        ),
+        Index("idx_beneficiary_source", "source_account_number"),
+    )
+
+    def to_entity(self) -> Beneficiary:
+        """Convert ORM model to pure Domain Beneficiary entity."""
+        return Beneficiary(
+            source_account_number=AccountNumber(self.source_account_number),
+            destination_account_number=AccountNumber(self.destination_account_number),
+            destination_holder_name=self.destination_holder_name,
+            nickname=self.nickname,
+            bank_name=self.bank_name,
+            beneficiary_id=self.beneficiary_id,
+            created_at=self.created_at,
+        )
+
+    @classmethod
+    def from_entity(cls, entity: Beneficiary) -> BeneficiaryModel:
+        """Construct ORM model from pure Domain Beneficiary entity."""
+        return cls(
+            beneficiary_id=entity.beneficiary_id,
+            source_account_number=entity.source_account_number.value,
+            destination_account_number=entity.destination_account_number.value,
+            destination_holder_name=entity.destination_holder_name,
+            nickname=entity.nickname,
+            bank_name=entity.bank_name,
+            created_at=entity.created_at,
+        )

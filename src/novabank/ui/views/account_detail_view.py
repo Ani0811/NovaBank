@@ -173,6 +173,13 @@ class AccountDetailView(QWidget):
         action_layout.addWidget(self.op_status_label)
         action_layout.addStretch()
 
+        self.freeze_btn = QPushButton("Freeze Account")
+        self.freeze_btn.setProperty("class", "SecondaryButton")
+        self.freeze_btn.setStyleSheet("color: #B45309; border-color: #FDE68A;")
+        self.freeze_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.freeze_btn.clicked.connect(self._on_freeze_clicked)
+        action_layout.addWidget(self.freeze_btn)
+
         self.close_btn = QPushButton("Close Account")
         self.close_btn.setProperty("class", "DangerButton")
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -247,6 +254,8 @@ class AccountDetailView(QWidget):
         self.vm.account_loaded.connect(self._render_account)
         self.vm.profile_updated.connect(self._on_profile_updated)
         self.vm.account_closed.connect(self._on_account_closed)
+        self.vm.account_frozen.connect(self._on_account_frozen)
+        self.vm.account_unfrozen.connect(self._on_account_unfrozen)
         self.vm.validation_changed.connect(self._on_validation_changed)
         self.vm.loading_changed.connect(self._on_loading_changed)
         self.vm.operation_error.connect(self._on_operation_error)
@@ -274,14 +283,25 @@ class AccountDetailView(QWidget):
         self.version_card.findChild(QLabel, "kpi_ledger_version").setText(f"v{acc.version}")
 
         # Status badge
-        if acc.is_active:
-            self.status_badge.setText("● Active")
-            self.status_badge.setProperty("status", "success")
-            self.close_btn.setEnabled(True)
-        else:
+        if not acc.is_active:
             self.status_badge.setText("○ Closed")
             self.status_badge.setProperty("status", "danger")
             self.close_btn.setEnabled(False)
+            self.freeze_btn.setEnabled(False)
+        elif acc.is_frozen:
+            self.status_badge.setText("▲ Frozen (Risk Hold)")
+            self.status_badge.setProperty("status", "warning")
+            self.freeze_btn.setText("Unfreeze Account")
+            self.freeze_btn.setStyleSheet("color: #15803D; border-color: #BBF7D0;")
+            self.freeze_btn.setEnabled(True)
+            self.close_btn.setEnabled(False)
+        else:
+            self.status_badge.setText("● Active")
+            self.status_badge.setProperty("status", "success")
+            self.freeze_btn.setText("Freeze Account")
+            self.freeze_btn.setStyleSheet("color: #B45309; border-color: #FDE68A;")
+            self.freeze_btn.setEnabled(True)
+            self.close_btn.setEnabled(True)
 
         self.status_badge.style().unpolish(self.status_badge)
         self.status_badge.style().polish(self.status_badge)
@@ -353,6 +373,55 @@ class AccountDetailView(QWidget):
             self,
             "Account Closed",
             f"Account {closed_dto.account_number} ({closed_dto.holder_name}) has been deactivated.",
+        )
+
+    def _on_freeze_clicked(self) -> None:
+        if not self.vm.account:
+            return
+
+        if self.vm.account.is_frozen:
+            confirm = QMessageBox.question(
+                self,
+                "Release Administrative Hold",
+                f"Are you sure you want to release the freeze on account {self.vm.account.account_number}?\n\n"
+                "This will immediately restore normal withdrawal and transfer capabilities.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if confirm == QMessageBox.StandardButton.Yes:
+                self.vm.unfreeze_account(reason="Hold released by operator")
+        else:
+            from PySide6.QtWidgets import QInputDialog
+            reason, ok = QInputDialog.getText(
+                self,
+                "Administrative Account Freeze",
+                f"Enter reason for placing risk hold on account {self.vm.account.account_number}:",
+                QLineEdit.EchoMode.Normal,
+                "Suspected credential compromise / AML review",
+            )
+            if ok and reason.strip():
+                self.vm.freeze_account(reason=reason.strip())
+
+    def _on_account_frozen(self, frozen_dto: AccountDTO) -> None:
+        self._render_account(frozen_dto)
+        self.op_status_label.setText("Account administratively frozen.")
+        self.op_status_label.setStyleSheet("color: #B45309; font-weight: 600;")
+        QMessageBox.warning(
+            self,
+            "Account Frozen",
+            f"Account {frozen_dto.account_number} has been placed under administrative hold.\n\n"
+            "Debits and withdrawals are now restricted.",
+        )
+
+    def _on_account_unfrozen(self, unfrozen_dto: AccountDTO) -> None:
+        self._render_account(unfrozen_dto)
+        self.op_status_label.setText("Account hold released.")
+        self.op_status_label.setStyleSheet("color: #15803D; font-weight: 600;")
+        QMessageBox.information(
+            self,
+            "Hold Released",
+            f"Administrative hold on account {unfrozen_dto.account_number} has been released.\n\n"
+            "Normal operations have been restored.",
         )
 
     def _on_operation_error(self, err_msg: str) -> None:

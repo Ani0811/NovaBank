@@ -10,7 +10,8 @@
 | **Phase 3: Statements, Reports, Audit & Backup Procedures** | P3 | 8 | 0 | 0 | 0 | 8 |
 | **Phase 4: Local LM Studio AI Integration** | P4 | 6 | 0 | 0 | 0 | 6 |
 | **Phase 5: Hardening, Packaging & Release** | P5 | 5 | 0 | 0 | 0 | 5 |
-| **Total** | | **43** | **0** | **0** | **0** | **43** |
+| **Phase 6: Enterprise Banking Expansion** | P6 | 4 | 0 | 0 | 0 | 4 |
+| **Total** | | **47** | **0** | **0** | **0** | **47** |
 
 ---
 
@@ -800,3 +801,91 @@
 - **Required Tests**: Documentation review and markdown linting.
 - **Status**: Completed
 - **Notes**: Portfolio presentation artifact. Authored comprehensive documentation suite including root `README.md` (architecture diagram, quick start, test metrics), `docs/DEVELOPER_GUIDE.md` (clean architecture, testing, static security, packaging), `docs/USER_MANUAL.md` (teller operations, cash desk, statements, AI assistant), and `docs/MIGRATION_GUIDE.md` (legacy comparison matrix, schema mapping, credential shredding). Verified with `tests/test_documentation_integrity.py`.
+
+---
+
+## Phase 6: Enterprise Banking Expansion (P6)
+
+### TASK-P6-01: Risk Management - Account Freeze & Fraud Hold Controls
+- **Objective**: Implement administrative risk hold and account freeze domain invariants, debit restrictions, audit trail logging, and UI controls in `AccountDetailView`.
+- **Priority**: P6
+- **Dependencies**: `TASK-P1-01`, `TASK-P2-03`, `TASK-P3-02`
+- **Affected Files/Modules**:
+  - `src/novabank/domain/exceptions.py` (`AccountFrozenError`)
+  - `src/novabank/domain/entities/account.py` (`freeze()`, `unfreeze()`, debit guard)
+  - `src/novabank/infrastructure/db/models.py` (`AccountModel.is_frozen`)
+  - `src/novabank/infrastructure/repositories/sql_account_repository.py`
+  - `src/novabank/application/events.py` (`AccountFrozenEvent`, `AccountUnfrozenEvent`)
+  - `src/novabank/application/services/audit_service.py` (`EVENT_ACCOUNT_FROZEN`, `EVENT_ACCOUNT_UNFROZEN`)
+  - `src/novabank/application/services/banking_service.py` (`freeze_account()`, `unfreeze_account()`)
+  - `src/novabank/ui/viewmodels/account_detail_viewmodel.py`
+  - `src/novabank/ui/views/account_detail_view.py`
+- **Acceptance Criteria**:
+  - Frozen accounts immediately reject withdrawals and debits with `AccountFrozenError`.
+  - Inbound settlements and credits remain permissible to settle obligations.
+  - Tellers can toggle freeze/unfreeze with mandatory audit reasons.
+  - UI displays amber `▲ Frozen (Risk Hold)` status pill and dynamic action button.
+- **Required Tests**: `tests/domain/test_account.py`, `tests/application/test_withdrawal_service.py`, `tests/ui/test_account_detail_view.py`.
+- **Status**: Done
+
+---
+
+### TASK-P6-02: Payee & Beneficiary Address Book
+- **Objective**: Implement domain entity, SQL persistence, application workflows, and UI quick-picker for frequent transfer payees and beneficiaries.
+- **Priority**: P6
+- **Dependencies**: `TASK-P1-03`, `TASK-P2-05`
+- **Affected Files/Modules**:
+  - `src/novabank/domain/entities/beneficiary.py`
+  - `src/novabank/domain/repositories/beneficiary_repository.py`
+  - `src/novabank/infrastructure/db/models.py` (`BeneficiaryModel`)
+  - `src/novabank/infrastructure/repositories/sql_beneficiary_repository.py`
+  - `src/novabank/application/dto/beneficiary_dto.py`
+  - `src/novabank/application/events.py` (`BeneficiaryAddedEvent`, `BeneficiaryRemovedEvent`)
+  - `src/novabank/application/services/banking_service.py` (`add_beneficiary`, `list_beneficiaries`, `delete_beneficiary`)
+  - `src/novabank/ui/viewmodels/transaction_viewmodel.py` (`load_beneficiaries`, `save_beneficiary`)
+  - `src/novabank/ui/views/transfer_view.py`
+- **Acceptance Criteria**:
+  - Self-beneficiary registration is blocked via `SelfTransferError`.
+  - Saved payees auto-populate in `TransferView` dropdown when source account is resolved.
+  - Tellers can optionally check "Save as frequent beneficiary / payee" during any transfer.
+- **Required Tests**: `tests/domain/test_beneficiary.py`, `tests/infrastructure/test_beneficiary_repository.py`, `tests/application/test_beneficiary_service.py`, `tests/ui/test_transfer_view.py`.
+- **Status**: Done
+
+---
+
+### TASK-P6-03: Ledger Explorer & Multi-Criteria Transaction Filtering with CSV Export
+- **Objective**: Deliver a dedicated 4th tab in `TransactionsHubView` providing advanced multi-column filtering across the entire financial ledger with RFC-4180 CSV export.
+- **Priority**: P6
+- **Dependencies**: `TASK-P1-04`, `TASK-P3-01`
+- **Affected Files/Modules**:
+  - `src/novabank/domain/repositories/transaction_repository.py` (`search_transactions`)
+  - `src/novabank/infrastructure/repositories/sql_transaction_repository.py`
+  - `src/novabank/application/services/banking_service.py` (`search_transactions`, `export_ledger_csv`)
+  - `src/novabank/ui/views/ledger_explorer_view.py`
+  - `src/novabank/ui/views/transactions_hub_view.py`
+- **Acceptance Criteria**:
+  - Filter transactions by account number, transaction type, date range, and amount range.
+  - Clean 8-column ledger table with monospace references, directional color coding, and pagination.
+  - Direct export of filtered transactions to CSV with formula injection neutralization.
+- **Required Tests**: `tests/application/test_ledger_search_and_interest.py`, `tests/ui/test_ledger_explorer_view.py`.
+- **Status**: Done
+
+---
+
+### TASK-P6-04: Automated Interest & Fee Accrual Engine
+- **Objective**: Develop a mathematically precise APY interest accrual engine with batch credit processing and administration trigger in `SettingsView`.
+- **Priority**: P6
+- **Dependencies**: `TASK-P1-01`, `TASK-P1-02`, `TASK-P2-08`
+- **Affected Files/Modules**:
+  - `src/novabank/domain/services/interest_calculator.py`
+  - `src/novabank/application/events.py` (`InterestAccruedEvent`)
+  - `src/novabank/application/services/audit_service.py` (`EVENT_INTEREST_ACCRUED`)
+  - `src/novabank/application/services/banking_service.py` (`accrue_interest()`)
+  - `src/novabank/ui/views/settings_view.py`
+- **Acceptance Criteria**:
+  - Precise compounding formula: $(B \times (r / 100) / 12)$ quantized with `ROUND_HALF_UP`.
+  - Respects minimum qualifying balance and skips frozen/closed accounts.
+  - Credits accounts atomically under `TransactionType.INTEREST` with audit logging.
+  - Administrative control in `SettingsView` with confirmation dialog and run summary.
+- **Required Tests**: `tests/domain/test_interest_calculator.py`, `tests/application/test_ledger_search_and_interest.py`, `tests/ui/test_settings_view.py`.
+- **Status**: Done

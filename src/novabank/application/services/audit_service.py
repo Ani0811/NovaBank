@@ -11,8 +11,13 @@ from sqlalchemy.orm import Session, sessionmaker
 from novabank.application.dto.audit_dto import AuditEventDTO
 from novabank.application.events import (
     AccountClosedEvent,
+    AccountFrozenEvent,
     AccountOpenedEvent,
+    AccountUnfrozenEvent,
+    BeneficiaryAddedEvent,
+    BeneficiaryRemovedEvent,
     DepositCompletedEvent,
+    InterestAccruedEvent,
     ProfileUpdatedEvent,
     TransferCompletedEvent,
     WithdrawalCompletedEvent,
@@ -26,9 +31,14 @@ class AuditService:
     EVENT_ACCOUNT_CREATED = "ACCOUNT_CREATED"
     EVENT_ACCOUNT_UPDATED = "ACCOUNT_UPDATED"
     EVENT_ACCOUNT_CLOSED = "ACCOUNT_CLOSED"
+    EVENT_ACCOUNT_FROZEN = "ACCOUNT_FROZEN"
+    EVENT_ACCOUNT_UNFROZEN = "ACCOUNT_UNFROZEN"
     EVENT_DEPOSIT = "DEPOSIT"
     EVENT_WITHDRAWAL = "WITHDRAWAL"
     EVENT_TRANSFER = "TRANSFER"
+    EVENT_BENEFICIARY_ADDED = "BENEFICIARY_ADDED"
+    EVENT_BENEFICIARY_REMOVED = "BENEFICIARY_REMOVED"
+    EVENT_INTEREST_ACCRUED = "INTEREST_ACCRUED"
 
     def __init__(
         self, session_factory: Union[sessionmaker[Session], Callable[[], Session]]
@@ -100,6 +110,26 @@ class AuditService:
                 timestamp=event.timestamp,
             )
 
+        if isinstance(event, AccountFrozenEvent):
+            return self.record_event(
+                event_type=self.EVENT_ACCOUNT_FROZEN,
+                entity_type="ACCOUNT",
+                entity_id=event.account_number,
+                actor=event.actor,
+                payload={"reason": event.reason},
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, AccountUnfrozenEvent):
+            return self.record_event(
+                event_type=self.EVENT_ACCOUNT_UNFROZEN,
+                entity_type="ACCOUNT",
+                entity_id=event.account_number,
+                actor=event.actor,
+                payload={"reason": event.reason},
+                timestamp=event.timestamp,
+            )
+
         if isinstance(event, DepositCompletedEvent):
             return self.record_event(
                 event_type=self.EVENT_DEPOSIT,
@@ -146,6 +176,49 @@ class AuditService:
                     "destination_balance_after": str(event.destination_balance_after),
                     "currency": event.currency,
                     "description": event.description,
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, BeneficiaryAddedEvent):
+            return self.record_event(
+                event_type=self.EVENT_BENEFICIARY_ADDED,
+                entity_type="BENEFICIARY",
+                entity_id=f"{event.source_account}->{event.destination_account}",
+                actor=event.actor,
+                payload={
+                    "source_account": event.source_account,
+                    "destination_account": event.destination_account,
+                    "destination_holder_name": event.destination_holder_name,
+                    "nickname": event.nickname,
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, BeneficiaryRemovedEvent):
+            return self.record_event(
+                event_type=self.EVENT_BENEFICIARY_REMOVED,
+                entity_type="BENEFICIARY",
+                entity_id=str(event.beneficiary_id),
+                actor=event.actor,
+                payload={
+                    "beneficiary_id": event.beneficiary_id,
+                    "source_account": event.source_account,
+                    "destination_account": event.destination_account,
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, InterestAccruedEvent):
+            return self.record_event(
+                event_type=self.EVENT_INTEREST_ACCRUED,
+                entity_type="SYSTEM",
+                entity_id="BATCH_INTEREST",
+                actor=event.actor,
+                payload={
+                    "accounts_credited": event.accounts_credited,
+                    "total_interest_credited": str(event.total_interest_credited),
+                    "annual_rate_percentage": str(event.annual_rate_percentage),
                 },
                 timestamp=event.timestamp,
             )

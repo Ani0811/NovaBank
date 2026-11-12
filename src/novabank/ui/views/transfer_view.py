@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QDialog,
     QFormLayout,
     QFrame,
@@ -22,6 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from novabank.application.dto.account_dto import AccountDTO
+from novabank.application.dto.beneficiary_dto import BeneficiaryDTO
 from novabank.application.dto.transaction_dto import TransferResultDTO
 from novabank.ui.resources.icons import get_icon
 from novabank.ui.viewmodels.transaction_viewmodel import TransactionViewModel
@@ -331,6 +334,18 @@ class TransferView(QWidget):
         dest_title.setProperty("class", "CardTitle")
         dest_layout.addWidget(dest_title)
 
+        # Saved Payees Quick-Picker
+        payee_row = QHBoxLayout()
+        payee_lbl = QLabel("Saved Payees:")
+        payee_lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #475569;")
+        self.payees_combo = QComboBox()
+        self.payees_combo.addItem("-- Select from saved payees --", None)
+        self.payees_combo.setStyleSheet("font-size: 12px; padding: 4px;")
+        self.payees_combo.currentIndexChanged.connect(self._on_payee_selected)
+        payee_row.addWidget(payee_lbl)
+        payee_row.addWidget(self.payees_combo, stretch=1)
+        dest_layout.addLayout(payee_row)
+
         dest_input_layout = QHBoxLayout()
         dest_input_layout.setSpacing(10)
 
@@ -374,6 +389,21 @@ class TransferView(QWidget):
         self.dest_banner_badge.setProperty("status", "success")
         dst_banner_layout.addWidget(self.dest_banner_badge)
         dest_layout.addWidget(self.dest_banner)
+
+        # Save Beneficiary Options
+        save_payee_box = QVBoxLayout()
+        save_payee_box.setSpacing(4)
+        self.save_payee_chk = QCheckBox("Save as frequent beneficiary / payee")
+        self.save_payee_chk.setStyleSheet("font-size: 12px; color: #475569;")
+        self.payee_nickname_edit = QLineEdit()
+        self.payee_nickname_edit.setPlaceholderText("Enter payee nickname (e.g. Office Rent, Supplier)...")
+        self.payee_nickname_edit.setStyleSheet("font-size: 12px; padding: 4px;")
+        self.payee_nickname_edit.setVisible(False)
+        self.save_payee_chk.toggled.connect(self.payee_nickname_edit.setVisible)
+        save_payee_box.addWidget(self.save_payee_chk)
+        save_payee_box.addWidget(self.payee_nickname_edit)
+        dest_layout.addLayout(save_payee_box)
+
         acc_grid.addWidget(dest_card)
 
         content_layout.addLayout(acc_grid)
@@ -517,6 +547,7 @@ class TransferView(QWidget):
         self.vm.submitting_changed.connect(self._on_submitting_changed)
         self.vm.transaction_completed.connect(self._on_transaction_completed)
         self.vm.transaction_failed.connect(self._on_transaction_failed)
+        self.vm.beneficiaries_loaded.connect(self._on_beneficiaries_loaded)
 
     def _on_source_text_changed(self, text: str) -> None:
         clean = text.strip().replace("-", "").replace(" ", "")
@@ -682,8 +713,28 @@ class TransferView(QWidget):
         self.status_msg.setText("")
         QMessageBox.critical(self, "Transfer Failed", f"Could not complete transfer:\n{error_msg}")
 
+    def _on_beneficiaries_loaded(self, payees: list[BeneficiaryDTO]) -> None:
+        self.payees_combo.blockSignals(True)
+        self.payees_combo.clear()
+        self.payees_combo.addItem("-- Select from saved payees --", None)
+        for p in payees:
+            self.payees_combo.addItem(
+                f"{p.nickname} ({p.destination_holder_name} - {p.destination_account_number[-4:]})",
+                p.destination_account_number,
+            )
+        self.payees_combo.blockSignals(False)
+
+    def _on_payee_selected(self, index: int) -> None:
+        dest_num = self.payees_combo.currentData()
+        if dest_num:
+            self.dest_account_edit.setText(dest_num)
+
     def _on_submit_clicked(self) -> None:
-        self.vm.execute_transfer(actor="teller")
+        self.vm.execute_transfer(
+            actor="teller",
+            save_beneficiary=self.save_payee_chk.isChecked(),
+            beneficiary_nickname=self.payee_nickname_edit.text(),
+        )
 
     def reset_form(self) -> None:
         """Clear all inputs, account selections, and validation state."""
@@ -691,6 +742,14 @@ class TransferView(QWidget):
         self.dest_account_edit.clear()
         self.amount_edit.clear()
         self.desc_edit.setText("Internal Fund Transfer")
+
+        self.save_payee_chk.setChecked(False)
+        self.payee_nickname_edit.clear()
+        self.payee_nickname_edit.setVisible(False)
+        self.payees_combo.blockSignals(True)
+        self.payees_combo.clear()
+        self.payees_combo.addItem("-- Select from saved payees --", None)
+        self.payees_combo.blockSignals(False)
 
         self.source_banner.setVisible(False)
         self.dest_banner.setVisible(False)

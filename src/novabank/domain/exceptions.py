@@ -42,6 +42,18 @@ class AccountClosedError(DomainError):
         self.account_number = account_number
 
 
+class AccountFrozenError(DomainError):
+    """Raised when an outgoing debit or withdrawal is attempted on an administratively frozen account."""
+
+    def __init__(self, account_number: str, reason: str = "") -> None:
+        msg = f"Account {account_number} is administratively frozen. Outgoing transactions are prohibited."
+        if reason:
+            msg += f" Reason: {reason}"
+        super().__init__(msg)
+        self.account_number = account_number
+        self.reason = reason
+
+
 class AccountNotFoundError(DomainError):
     """Raised when the requested account number does not exist."""
 

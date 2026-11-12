@@ -27,6 +27,7 @@ class TransactionViewModel(QObject):
     submitting_changed = Signal(bool)
     transaction_completed = Signal(object)  # TransactionDTO or TransferResultDTO
     transaction_failed = Signal(str)
+    beneficiaries_loaded = Signal(list)  # list[BeneficiaryDTO]
 
     # Counter Limits
     MIN_TRANSACTION_AMOUNT = Decimal("1.00")
@@ -70,18 +71,26 @@ class TransactionViewModel(QObject):
             return self.banking_service.get_account(clean_num)
 
         def _on_success(dto: Optional[AccountDTO]):
-            if dto:
-                self.source_account = dto
-                self.account_found.emit(dto)
-            else:
-                self.source_account = None
-                self.account_lookup_failed.emit(f"Account {clean_num} does not exist.")
-            self.validate_current()
+            try:
+                if dto:
+                    self.source_account = dto
+                    self.account_found.emit(dto)
+                    if self.mode == "transfer":
+                        self.load_beneficiaries(dto.account_number)
+                else:
+                    self.source_account = None
+                    self.account_lookup_failed.emit(f"Account {clean_num} does not exist.")
+                self.validate_current()
+            except RuntimeError:
+                pass
 
         def _on_error(exc: Exception, tb: str):
-            self.source_account = None
-            self.account_lookup_failed.emit(str(exc))
-            self.validate_current()
+            try:
+                self.source_account = None
+                self.account_lookup_failed.emit(str(exc))
+                self.validate_current()
+            except RuntimeError:
+                pass
 
         self.task_runner.run_async(_fetch, on_result=_on_success, on_error=_on_error)
 
@@ -99,20 +108,26 @@ class TransactionViewModel(QObject):
             return self.banking_service.get_account(clean_num)
 
         def _on_success(dto: Optional[AccountDTO]):
-            if dto:
-                self.destination_account = dto
-                self.destination_account_found.emit(dto)
-            else:
-                self.destination_account = None
-                self.destination_account_failed.emit(
-                    f"Destination account {clean_num} does not exist."
-                )
-            self.validate_current()
+            try:
+                if dto:
+                    self.destination_account = dto
+                    self.destination_account_found.emit(dto)
+                else:
+                    self.destination_account = None
+                    self.destination_account_failed.emit(
+                        f"Destination account {clean_num} does not exist."
+                    )
+                self.validate_current()
+            except RuntimeError:
+                pass
 
         def _on_error(exc: Exception, tb: str):
-            self.destination_account = None
-            self.destination_account_failed.emit(str(exc))
-            self.validate_current()
+            try:
+                self.destination_account = None
+                self.destination_account_failed.emit(str(exc))
+                self.validate_current()
+            except RuntimeError:
+                pass
 
         self.task_runner.run_async(_fetch, on_result=_on_success, on_error=_on_error)
 
@@ -400,8 +415,13 @@ class TransactionViewModel(QObject):
             on_finished=_on_finished,
         )
 
-    def execute_transfer(self, actor: str = "teller") -> None:
-        """Submit account-to-account fund transfer asynchronously."""
+    def execute_transfer(
+        self,
+        actor: str = "teller",
+        save_beneficiary: bool = False,
+        beneficiary_nickname: str = "",
+    ) -> None:
+        """Submit account-to-account fund transfer asynchronously with optional beneficiary bookmarking."""
         is_valid, _ = self.validate_transfer()
         if (
             not is_valid
@@ -421,13 +441,24 @@ class TransactionViewModel(QObject):
         desc = self.description.strip() or f"Transfer from {src_num} to {dst_num}"
 
         def _do_transfer():
-            return self.banking_service.transfer(
+            res = self.banking_service.transfer(
                 source_account_number=src_num,
                 destination_account_number=dst_num,
                 amount=amt,
                 description=desc,
                 actor=actor,
             )
+            if save_beneficiary and beneficiary_nickname.strip():
+                try:
+                    self.banking_service.add_beneficiary(
+                        source_account=src_num,
+                        destination_account=dst_num,
+                        nickname=beneficiary_nickname.strip(),
+                        actor=actor,
+                    )
+                except Exception:
+                    pass
+            return res
 
         def _on_success(dto: TransferResultDTO):
             if self.source_account:
@@ -467,6 +498,8 @@ class TransactionViewModel(QObject):
                 )
                 self.destination_account_found.emit(self.destination_account)
             self.transaction_completed.emit(dto)
+            if save_beneficiary:
+                self.load_beneficiaries(src_num)
 
         def _on_error(exc: Exception, tb: str):
             self.transaction_failed.emit(str(exc))
@@ -481,3 +514,22 @@ class TransactionViewModel(QObject):
             on_error=_on_error,
             on_finished=_on_finished,
         )
+
+    def load_beneficiaries(self, source_account_number: str) -> None:
+        """Fetch saved frequent payees for the specified source account asynchronously."""
+        if not self.banking_service or not self.task_runner:
+            return
+
+        def _do_fetch():
+            return self.banking_service.list_beneficiaries(source_account_number)
+
+        def _on_success(payees):
+            try:
+                self.beneficiaries_loaded.emit(payees)
+            except RuntimeError:
+                pass
+
+        def _on_error(exc: Exception, tb: str):
+            pass
+
+        self.task_runner.run_async(_do_fetch, on_result=_on_success, on_error=_on_error)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Optional
 
 from PySide6.QtCore import Qt
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
@@ -56,8 +58,8 @@ class SettingsView(QWidget):
 
         container = QWidget()
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(28, 24, 28, 28)
-        layout.setSpacing(20)
+        layout.setContentsMargins(28, 20, 28, 24)
+        layout.setSpacing(14)
 
         # 1. Header Section
         header_row = QHBoxLayout()
@@ -78,7 +80,7 @@ class SettingsView(QWidget):
         db_card = QFrame()
         db_card.setProperty("class", "CardFrame")
         db_layout = QVBoxLayout(db_card)
-        db_layout.setSpacing(16)
+        db_layout.setSpacing(10)
 
         db_header = QHBoxLayout()
         db_title = QLabel("DATABASE CONFIGURATION")
@@ -171,10 +173,67 @@ class SettingsView(QWidget):
             "font-family: Consolas, 'Courier New', monospace; font-size: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0;"
         )
         self.diag_output.setPlaceholderText("Click 'Run Connection Diagnostics' to verify MySQL and local services...")
-        self.diag_output.setFixedHeight(120)
+        self.diag_output.setFixedHeight(85)
         diag_layout.addWidget(self.diag_output)
 
         layout.addWidget(diag_card)
+
+        # 4. Automated Interest & Fee Accrual Card
+        interest_card = QFrame()
+        interest_card.setProperty("class", "CardFrame")
+        int_layout = QVBoxLayout(interest_card)
+        int_layout.setSpacing(10)
+
+        int_header = QHBoxLayout()
+        int_title = QLabel("AUTOMATED INTEREST & APY ACCRUAL ENGINE")
+        int_title.setProperty("class", "CardTitle")
+        int_header.addWidget(int_title)
+        int_header.addStretch()
+
+        self.interest_status_pill = QLabel("Engine Ready")
+        self.interest_status_pill.setProperty("class", "StatusIndicatorPill")
+        self.interest_status_pill.setProperty("status", "success")
+        int_header.addWidget(self.interest_status_pill)
+        int_layout.addLayout(int_header)
+
+        int_desc = QLabel(
+            "Batch calculate and credit monthly compounding interest (APY) to all active customer savings accounts "
+            "meeting the minimum qualifying balance requirement. All interest credits are cryptographically journaled."
+        )
+        int_desc.setStyleSheet("font-size: 12px; color: #64748B;")
+        int_desc.setWordWrap(True)
+        int_layout.addWidget(int_desc)
+
+        int_grid = QGridLayout()
+        int_grid.setSpacing(12)
+
+        int_grid.addWidget(QLabel("Annual Percentage Yield (APY %):"), 0, 0)
+        self.apy_rate_edit = QLineEdit("2.50")
+        self.apy_rate_edit.setStyleSheet("font-size: 13px; font-weight: 600;")
+        int_grid.addWidget(self.apy_rate_edit, 0, 1)
+
+        int_grid.addWidget(QLabel("Minimum Qualifying Balance ($):"), 0, 2)
+        self.min_bal_edit = QLineEdit("100.00")
+        self.min_bal_edit.setStyleSheet("font-size: 13px; font-weight: 600;")
+        int_grid.addWidget(self.min_bal_edit, 0, 3)
+
+        int_layout.addLayout(int_grid)
+
+        int_actions = QHBoxLayout()
+        self.interest_result_lbl = QLabel("No interest posting executed in current session.")
+        self.interest_result_lbl.setStyleSheet("font-size: 12px; color: #475569; font-weight: 500;")
+        int_actions.addWidget(self.interest_result_lbl, stretch=1)
+
+        self.post_interest_btn = QPushButton("Post Monthly Interest")
+        self.post_interest_btn.setProperty("class", "PrimaryButton")
+        self.post_interest_btn.setIcon(get_icon("check", color="#FFFFFF", size=14))
+        self.post_interest_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.post_interest_btn.clicked.connect(self._on_post_interest_clicked)
+        int_actions.addWidget(self.post_interest_btn)
+
+        int_layout.addLayout(int_actions)
+        layout.addWidget(interest_card)
+
         layout.addStretch()
 
         scroll.setWidget(container)
@@ -238,3 +297,93 @@ class SettingsView(QWidget):
         self.db_status_pill.style().unpolish(self.db_status_pill)
         self.db_status_pill.style().polish(self.db_status_pill)
         self.diag_output.setPlainText(f"Diagnostics runner encountered an exception:\n{exc}")
+
+    def _on_post_interest_clicked(self) -> None:
+        """Trigger monthly compounding interest calculation across all qualifying accounts."""
+        if not self.banking_service:
+            QMessageBox.warning(self, "Service Offline", "Banking Service is currently offline.")
+            return
+
+        try:
+            rate_val = Decimal(self.apy_rate_edit.text().strip().replace("%", ""))
+            min_val = Decimal(self.min_bal_edit.text().strip().replace("$", "").replace(",", ""))
+            if rate_val < Decimal("0.00") or min_val < Decimal("0.00"):
+                raise InvalidOperation("Values cannot be negative")
+        except (InvalidOperation, ValueError):
+            QMessageBox.warning(
+                self,
+                "Invalid Parameters",
+                "Please enter valid positive decimal numbers for APY percentage and minimum balance.",
+            )
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Interest Posting",
+            f"Are you sure you want to execute monthly interest accrual?\n\n"
+            f"• Annual APY Rate: {rate_val:.2f}%\n"
+            f"• Minimum Qualifying Balance: ${min_val:,.2f} USD\n\n"
+            f"This will immediately credit and journal interest to all qualifying accounts.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        self.post_interest_btn.setEnabled(False)
+        self.interest_status_pill.setText("Calculating...")
+        self.interest_status_pill.setProperty("status", "warning")
+        self.interest_status_pill.style().unpolish(self.interest_status_pill)
+        self.interest_status_pill.style().polish(self.interest_status_pill)
+
+        if self.task_runner:
+            self.task_runner.run_async(
+                lambda: self.banking_service.accrue_interest(
+                    annual_rate_percentage=rate_val,
+                    min_qualifying_balance=min_val,
+                    actor="teller_admin",
+                ),
+                on_result=self._on_interest_success,
+                on_error=self._on_interest_error,
+                on_finished=lambda: self.post_interest_btn.setEnabled(True),
+            )
+        else:
+            try:
+                res = self.banking_service.accrue_interest(
+                    annual_rate_percentage=rate_val,
+                    min_qualifying_balance=min_val,
+                    actor="teller_admin",
+                )
+                self._on_interest_success(res)
+            except Exception as exc:
+                self._on_interest_error(exc, "")
+            finally:
+                self.post_interest_btn.setEnabled(True)
+
+    def _on_interest_success(self, credited_dtos: list) -> None:
+        try:
+            self.interest_status_pill.setText("Interest Posted")
+            self.interest_status_pill.setProperty("status", "success")
+            self.interest_status_pill.style().unpolish(self.interest_status_pill)
+            self.interest_status_pill.style().polish(self.interest_status_pill)
+
+            total_amount = sum((tx.amount for tx in credited_dtos), Decimal("0.00"))
+            summary = (
+                f"Successfully posted interest to {len(credited_dtos)} accounts totaling ${total_amount:,.2f} USD."
+            )
+            self.interest_result_lbl.setText(summary)
+            QMessageBox.information(self, "Interest Accrual Complete", summary)
+        except RuntimeError:
+            pass
+
+    def _on_interest_error(self, exc: Exception, tb: str) -> None:
+        try:
+            self.interest_status_pill.setText("Run Failed")
+            self.interest_status_pill.setProperty("status", "danger")
+            self.interest_status_pill.style().unpolish(self.interest_status_pill)
+            self.interest_status_pill.style().polish(self.interest_status_pill)
+            self.interest_result_lbl.setText(f"Error: {exc}")
+            QMessageBox.critical(self, "Accrual Failed", f"Failed to post interest:\n{exc}")
+        except RuntimeError:
+            pass

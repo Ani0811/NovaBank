@@ -359,3 +359,51 @@ def test_withdraw_multi_threaded_simultaneous_valid_withdrawals(db_setup):
 
         tx_count = SQLTransactionRepository(sess).count_by_account("200000000009")
         assert tx_count == 10
+
+
+def test_withdraw_frozen_account_rejected(db_setup):
+    """Verify that withdrawing from an administratively frozen account is blocked."""
+    from novabank.domain.exceptions import AccountFrozenError
+
+    session_factory, _ = db_setup
+    service = BankingService(session_factory=session_factory)
+
+    with session_factory() as sess:
+        with sess.begin():
+            acc = Account(
+                account_number=AccountNumber("200000000010"),
+                holder_name="Frozen Test",
+                dob=date(1990, 1, 1),
+                address_line="123 Ice St",
+                city="North Pole",
+                state="AK",
+                country="USA",
+                phone_number="1234567890",
+                balance=Money("500.00"),
+            )
+            SQLAccountRepository(sess).save(acc)
+
+    # Freeze the account
+    frozen_dto = service.freeze_account("200000000010", reason="Suspected credential compromise")
+    assert frozen_dto.is_frozen is True
+
+    # Attempting to withdraw must raise AccountFrozenError
+    with pytest.raises(AccountFrozenError, match="administratively frozen"):
+        service.withdraw(
+            account_number="200000000010",
+            amount=Decimal("50.00"),
+            description="Attempted cash withdrawal",
+        )
+
+    # Unfreeze the account
+    unfrozen_dto = service.unfreeze_account("200000000010", reason="Identity re-verified")
+    assert unfrozen_dto.is_frozen is False
+
+    # Now withdrawal succeeds
+    tx = service.withdraw(
+        account_number="200000000010",
+        amount=Decimal("50.00"),
+        description="Normal cash withdrawal",
+    )
+    assert tx.amount == Decimal("50.00")
+    assert tx.balance_after == Decimal("450.00")

@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from novabank.ui.resources.icons import get_icon
 from novabank.ui.views.deposit_view import DepositView
+from novabank.ui.views.ledger_explorer_view import LedgerExplorerView
 from novabank.ui.views.transfer_view import TransferView
 from novabank.ui.views.withdrawal_view import WithdrawalView
 
@@ -57,9 +58,20 @@ class TransactionsHubView(QWidget):
             task_runner=self.task_runner,
             parent=self.tab_widget,
         )
+        self.ledger_view = LedgerExplorerView(
+            banking_service=self.banking_service,
+            task_runner=self.task_runner,
+            parent=self.tab_widget,
+        )
 
         self.tab_widget.addTab(self.deposit_view, get_icon("deposits", color="#2563EB", size=16), "Cash Deposit")
         self.tab_widget.addTab(self.withdrawal_view, get_icon("withdrawals", color="#2563EB", size=16), "Cash Withdrawal")
         self.tab_widget.addTab(self.transfer_view, get_icon("transfers", color="#2563EB", size=16), "Fund Transfer")
+        self.tab_widget.addTab(self.ledger_view, get_icon("transactions", color="#2563EB", size=16), "Ledger Explorer && History")
+        self.tab_widget.currentChanged.connect(self._on_tab_changed)
 
         layout.addWidget(self.tab_widget)
+
+    def _on_tab_changed(self, index: int) -> None:
+        if index == 3:
+            self.ledger_view.refresh_data()

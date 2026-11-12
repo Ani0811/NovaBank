@@ -238,3 +238,40 @@ def test_account_detail_view_back_requested_signal(qtbot) -> None:
 
     view.back_btn.click()
     assert back_called == [True]
+
+
+def test_viewmodel_freeze_and_unfreeze_flow(qtbot, banking_service) -> None:
+    """Verify asynchronous account freeze and unfreeze via ViewModel."""
+    task_runner = TaskRunner()
+    res = banking_service.open_account(
+        holder_name="Clark Kent",
+        dob=date(1988, 6, 18),
+        address_line="344 Clinton St",
+        city="Metropolis",
+        state="NY",
+        country="USA",
+        phone_number="5551234567",
+        initial_deposit=Decimal("150.00"),
+    )
+
+    vm = AccountDetailViewModel(banking_service, task_runner)
+    vm.set_account(res.account)
+    assert vm.account.is_frozen is False
+
+    # Freeze account
+    with qtbot.waitSignal(vm.account_frozen, timeout=3000):
+        vm.freeze_account(reason="AML Flagged")
+
+    assert vm.account.is_frozen is True
+
+    # Verify database state
+    db_acc = banking_service.get_account(res.account.account_number)
+    assert db_acc.is_frozen is True
+
+    # Unfreeze account
+    with qtbot.waitSignal(vm.account_unfrozen, timeout=3000):
+        vm.unfreeze_account(reason="AML Cleared")
+
+    assert vm.account.is_frozen is False
+    db_acc2 = banking_service.get_account(res.account.account_number)
+    assert db_acc2.is_frozen is False

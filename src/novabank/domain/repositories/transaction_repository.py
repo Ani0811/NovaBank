@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional, Union
 
 from novabank.domain.entities.transaction import Transaction
@@ -56,4 +57,20 @@ class TransactionRepositoryInterface(ABC):
         end_date: Optional[datetime] = None,
     ) -> int:
         """Count total transactions for an account, optionally filtered by date range."""
+        pass
+
+    @abstractmethod
+    def search_transactions(
+        self,
+        account_number: Optional[Union[AccountNumber, str]] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        tx_type: Optional[str] = None,
+        min_amount: Optional[Decimal] = None,
+        max_amount: Optional[Decimal] = None,
+        limit: int = 50,
+        offset: int = 0,
+        descending: bool = True,
+    ) -> tuple[list[Transaction], int]:
+        """Search transactions with multi-criteria filters across the entire ledger or specific account."""
         pass

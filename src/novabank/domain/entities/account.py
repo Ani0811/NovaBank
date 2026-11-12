@@ -10,6 +10,7 @@ from typing import Optional
 from novabank.domain.entities.transaction import Transaction
 from novabank.domain.exceptions import (
     AccountClosedError,
+    AccountFrozenError,
     CurrencyMismatchError,
     DomainError,
     InsufficientFundsError,
@@ -34,6 +35,7 @@ class Account:
         country: str,
         phone_number: str,
         is_active: bool = True,
+        is_frozen: bool = False,
         balance: Optional[Money] = None,
         version: int = 1,
         created_at: Optional[datetime] = None,
@@ -48,6 +50,7 @@ class Account:
         self.country = self._validate_address(country, "Country", 100)
         self.phone_number = self._validate_phone(phone_number)
         self.is_active = is_active
+        self.is_frozen = is_frozen
         self.balance = balance if balance is not None else Money.zero()
         self.version = version
         self.created_at = created_at or datetime.now(timezone.utc)
@@ -154,6 +157,9 @@ class Account:
         if not self.is_active:
             raise AccountClosedError(self.account_number.value)
 
+        if self.is_frozen:
+            raise AccountFrozenError(self.account_number.value)
+
         if not isinstance(amount, Money) or not amount.is_positive():
             raise InvalidAmountError(f"Debit amount must be positive, got {amount}")
 
@@ -180,6 +186,30 @@ class Account:
             transaction_ref=ref or str(uuid.uuid4()),
             created_by=actor,
         )
+
+    def freeze(self, reason: str = "") -> None:
+        """Place an administrative risk/fraud hold on this account, restricting debits."""
+        if not self.is_active:
+            raise AccountClosedError(self.account_number.value)
+
+        if self.is_frozen:
+            raise DomainError(f"Account {self.account_number.value} is already frozen.")
+
+        self.is_frozen = True
+        self.version += 1
+        self.updated_at = datetime.now(timezone.utc)
+
+    def unfreeze(self, reason: str = "") -> None:
+        """Release administrative hold on this account, restoring normal debit capabilities."""
+        if not self.is_active:
+            raise AccountClosedError(self.account_number.value)
+
+        if not self.is_frozen:
+            raise DomainError(f"Account {self.account_number.value} is not frozen.")
+
+        self.is_frozen = False
+        self.version += 1
+        self.updated_at = datetime.now(timezone.utc)
 
     def close(self, reason: str = "") -> None:
         """Close/deactivate this account. Requires balance to be zero."""

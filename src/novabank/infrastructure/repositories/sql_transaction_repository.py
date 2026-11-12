@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional, Union
 
 from sqlalchemy import func, select
@@ -143,3 +144,66 @@ class SQLTransactionRepository(TransactionRepositoryInterface):
 
         count = self._session.execute(stmt).scalar()
         return int(count or 0)
+
+    def search_transactions(
+        self,
+        account_number: Optional[Union[AccountNumber, str]] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        tx_type: Optional[str] = None,
+        min_amount: Optional[Decimal] = None,
+        max_amount: Optional[Decimal] = None,
+        limit: int = 50,
+        offset: int = 0,
+        descending: bool = True,
+    ) -> tuple[list[Transaction], int]:
+        """Search transactions with multi-criteria filters across the entire ledger or specific account."""
+        conditions = []
+
+        if account_number is not None:
+            acc_num = self._normalize_account_number(account_number)
+            if acc_num:
+                conditions.append(TransactionModel.account_number == acc_num)
+
+        if start_date is not None:
+            conditions.append(TransactionModel.created_at >= start_date)
+
+        if end_date is not None:
+            conditions.append(TransactionModel.created_at <= end_date)
+
+        if tx_type is not None and tx_type.strip() and tx_type.strip().upper() != "ALL":
+            conditions.append(TransactionModel.transaction_type == tx_type.strip().upper())
+
+        if min_amount is not None:
+            conditions.append(TransactionModel.amount >= min_amount)
+
+        if max_amount is not None:
+            conditions.append(TransactionModel.amount <= max_amount)
+
+        # Count total matches
+        count_stmt = select(func.count(TransactionModel.transaction_id))
+        if conditions:
+            count_stmt = count_stmt.where(*conditions)
+        total_count = int(self._session.execute(count_stmt).scalar() or 0)
+
+        # Query paginated rows
+        data_stmt = select(TransactionModel)
+        if conditions:
+            data_stmt = data_stmt.where(*conditions)
+
+        if descending:
+            data_stmt = data_stmt.order_by(
+                TransactionModel.created_at.desc(), TransactionModel.transaction_id.desc()
+            )
+        else:
+            data_stmt = data_stmt.order_by(
+                TransactionModel.created_at.asc(), TransactionModel.transaction_id.asc()
+            )
+
+        if offset > 0:
+            data_stmt = data_stmt.offset(offset)
+        if limit is not None:
+            data_stmt = data_stmt.limit(max(1, limit))
+
+        models = self._session.execute(data_stmt).scalars().all()
+        return [m.to_entity() for m in models], total_count

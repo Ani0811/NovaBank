@@ -43,6 +43,7 @@ class SQLAccountRepository(AccountRepositoryInterface):
             model.country = account.country
             model.phone_number = account.phone_number
             model.is_active = account.is_active
+            model.is_frozen = account.is_frozen
             model.balance = account.balance.amount
             model.currency = account.balance.currency
             model.version = account.version

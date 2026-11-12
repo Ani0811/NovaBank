@@ -42,9 +42,10 @@ class AccountDTO:
     balance: Decimal
     currency: str
     is_active: bool
-    version: int
-    created_at: datetime
-    updated_at: datetime
+    is_frozen: bool = False
+    version: int = 1
+    created_at: datetime = None  # type: ignore
+    updated_at: datetime = None  # type: ignore
 
     @classmethod
     def from_entity(cls, entity: Account) -> AccountDTO:
@@ -60,6 +61,7 @@ class AccountDTO:
             balance=entity.balance.amount,
             currency=entity.balance.currency,
             is_active=entity.is_active,
+            is_frozen=entity.is_frozen,
             version=entity.version,
             created_at=entity.created_at,
             updated_at=entity.updated_at,

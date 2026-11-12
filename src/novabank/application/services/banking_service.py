@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, TextIO, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TextIO, Union
 
 if TYPE_CHECKING:
     from novabank.application.dto.statement_dto import AccountStatementDTO
@@ -16,27 +16,37 @@ if TYPE_CHECKING:
 from sqlalchemy.orm import Session, sessionmaker
 
 from novabank.application.dto.account_dto import AccountDTO, OpenAccountResultDTO
+from novabank.application.dto.beneficiary_dto import BeneficiaryDTO
 from novabank.application.dto.transaction_dto import TransactionDTO, TransferResultDTO
 from novabank.application.events import (
     AccountClosedEvent,
+    AccountFrozenEvent,
     AccountOpenedEvent,
+    AccountUnfrozenEvent,
+    BeneficiaryAddedEvent,
+    BeneficiaryRemovedEvent,
     DepositCompletedEvent,
+    InterestAccruedEvent,
     ProfileUpdatedEvent,
     TransferCompletedEvent,
     WithdrawalCompletedEvent,
 )
 from novabank.domain.entities.account import Account
+from novabank.domain.entities.beneficiary import Beneficiary
 from novabank.domain.exceptions import (
     AccountClosedError,
+    AccountFrozenError,
     AccountNotFoundError,
     CurrencyMismatchError,
     InvalidAmountError,
     SelfTransferError,
 )
+from novabank.domain.services.interest_calculator import InterestCalculator
 from novabank.domain.value_objects.account_number import AccountNumber
 from novabank.domain.value_objects.money import Money
 from novabank.domain.value_objects.transaction_type import TransactionType
 from novabank.infrastructure.repositories.sql_account_repository import SQLAccountRepository
+from novabank.infrastructure.repositories.sql_beneficiary_repository import SQLBeneficiaryRepository
 from novabank.infrastructure.repositories.sql_transaction_repository import SQLTransactionRepository
 
 logger = logging.getLogger(__name__)
@@ -311,6 +321,74 @@ class BankingService:
             self._emit(event)
             return dto
 
+    def freeze_account(
+        self,
+        account_number: Union[AccountNumber, str],
+        reason: str = "Administrative risk hold",
+        actor: str = "teller",
+    ) -> AccountDTO:
+        """Place an administrative freeze on an account, restricting debits and withdrawals."""
+        if isinstance(account_number, AccountNumber):
+            acc_str = account_number.value
+        else:
+            acc_str = str(account_number).strip().replace("-", "").replace(" ", "")
+
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    repo = SQLAccountRepository(session)
+                    account = repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+
+                    account.freeze(reason=reason)
+                    repo.save(account)
+                    dto = AccountDTO.from_entity(account)
+
+                    event = AccountFrozenEvent(
+                        account_number=acc_str,
+                        reason=reason,
+                        timestamp=datetime.now(timezone.utc),
+                        actor=actor,
+                    )
+
+            self._emit(event)
+            return dto
+
+    def unfreeze_account(
+        self,
+        account_number: Union[AccountNumber, str],
+        reason: str = "Administrative hold released",
+        actor: str = "teller",
+    ) -> AccountDTO:
+        """Release administrative freeze on an account, restoring normal debit capabilities."""
+        if isinstance(account_number, AccountNumber):
+            acc_str = account_number.value
+        else:
+            acc_str = str(account_number).strip().replace("-", "").replace(" ", "")
+
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    repo = SQLAccountRepository(session)
+                    account = repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+
+                    account.unfreeze(reason=reason)
+                    repo.save(account)
+                    dto = AccountDTO.from_entity(account)
+
+                    event = AccountUnfrozenEvent(
+                        account_number=acc_str,
+                        reason=reason,
+                        timestamp=datetime.now(timezone.utc),
+                        actor=actor,
+                    )
+
+            self._emit(event)
+            return dto
+
     def deposit(
         self,
         account_number: Union[AccountNumber, str],
@@ -372,6 +450,9 @@ class BankingService:
 
                     if not account.is_active:
                         raise AccountClosedError(acc_str)
+
+                    if account.is_frozen:
+                        raise AccountFrozenError(acc_str)
 
                     # Domain entity credit execution
                     tx_entity = account.credit(
@@ -466,6 +547,9 @@ class BankingService:
 
                     if not account.is_active:
                         raise AccountClosedError(acc_str)
+
+                    if account.is_frozen:
+                        raise AccountFrozenError(acc_str)
 
                     # Domain entity debit execution (checks balance >= amount)
                     tx_entity = account.debit(
@@ -701,3 +785,252 @@ class BankingService:
             destination_path=destination_path,
             bank_name=bank_name,
         )
+
+    def add_beneficiary(
+        self,
+        source_account: Union[AccountNumber, str],
+        destination_account: Union[AccountNumber, str],
+        nickname: str,
+        bank_name: str = "NovaBank",
+        actor: str = "teller",
+    ) -> BeneficiaryDTO:
+        """Register or update a frequent payee contact in the account address book."""
+        src_str = (
+            source_account.value
+            if isinstance(source_account, AccountNumber)
+            else str(source_account).strip().replace("-", "").replace(" ", "")
+        )
+        dest_str = (
+            destination_account.value
+            if isinstance(destination_account, AccountNumber)
+            else str(destination_account).strip().replace("-", "").replace(" ", "")
+        )
+
+        if src_str == dest_str:
+            raise SelfTransferError(src_str)
+
+        with self._session_factory() as session:
+            with session.begin():
+                acc_repo = SQLAccountRepository(session)
+                src_acc = acc_repo.get_by_number(src_str)
+                if src_acc is None:
+                    raise AccountNotFoundError(src_str)
+                dest_acc = acc_repo.get_by_number(dest_str)
+                if dest_acc is None:
+                    raise AccountNotFoundError(dest_str)
+
+                beneficiary = Beneficiary(
+                    source_account_number=AccountNumber(src_str),
+                    destination_account_number=AccountNumber(dest_str),
+                    destination_holder_name=dest_acc.holder_name,
+                    nickname=nickname,
+                    bank_name=bank_name,
+                )
+                ben_repo = SQLBeneficiaryRepository(session)
+                ben_repo.save(beneficiary)
+                dto = BeneficiaryDTO.from_entity(beneficiary)
+
+                event = BeneficiaryAddedEvent(
+                    source_account=src_str,
+                    destination_account=dest_str,
+                    destination_holder_name=dest_acc.holder_name,
+                    nickname=beneficiary.nickname,
+                    timestamp=datetime.now(timezone.utc),
+                    actor=actor,
+                )
+
+        self._emit(event)
+        return dto
+
+    def list_beneficiaries(
+        self, source_account: Union[AccountNumber, str]
+    ) -> list[BeneficiaryDTO]:
+        """Fetch all verified saved payees for the specified source account."""
+        src_str = (
+            source_account.value
+            if isinstance(source_account, AccountNumber)
+            else str(source_account).strip().replace("-", "").replace(" ", "")
+        )
+        with self._session_factory() as session:
+            ben_repo = SQLBeneficiaryRepository(session)
+            entities = ben_repo.list_by_source(src_str)
+            return [BeneficiaryDTO.from_entity(e) for e in entities]
+
+    def delete_beneficiary(self, beneficiary_id: int, actor: str = "teller") -> bool:
+        """Remove a beneficiary record from the account address book."""
+        event: Optional[BeneficiaryRemovedEvent] = None
+        with self._session_factory() as session:
+            with session.begin():
+                ben_repo = SQLBeneficiaryRepository(session)
+                ben = ben_repo.get_by_id(beneficiary_id)
+                if ben is None:
+                    return False
+                event = BeneficiaryRemovedEvent(
+                    beneficiary_id=beneficiary_id,
+                    source_account=ben.source_account_number.value,
+                    destination_account=ben.destination_account_number.value,
+                    timestamp=datetime.now(timezone.utc),
+                    actor=actor,
+                )
+                ben_repo.delete(beneficiary_id)
+
+        if event is not None:
+            self._emit(event)
+        return True
+
+    def search_transactions(
+        self,
+        account_number: Optional[Union[AccountNumber, str]] = None,
+        start_date: Optional[Union[date, datetime]] = None,
+        end_date: Optional[Union[date, datetime]] = None,
+        tx_type: Optional[str] = None,
+        min_amount: Optional[Decimal] = None,
+        max_amount: Optional[Decimal] = None,
+        page: int = 1,
+        page_size: int = 50,
+        descending: bool = True,
+    ) -> tuple[list[TransactionDTO], int]:
+        """Search transactions matching flexible criteria across all accounts or a specific account."""
+        s_dt: Optional[datetime] = None
+        if isinstance(start_date, date) and not isinstance(start_date, datetime):
+            s_dt = datetime.combine(start_date, time.min).replace(tzinfo=timezone.utc)
+        elif isinstance(start_date, datetime):
+            s_dt = start_date
+
+        e_dt: Optional[datetime] = None
+        if isinstance(end_date, date) and not isinstance(end_date, datetime):
+            e_dt = datetime.combine(end_date, time.max).replace(tzinfo=timezone.utc)
+        elif isinstance(end_date, datetime):
+            e_dt = end_date
+
+        offset = max(0, (page - 1) * page_size)
+        with self._session_factory() as session:
+            repo = SQLTransactionRepository(session)
+            entities, total_count = repo.search_transactions(
+                account_number=account_number,
+                start_date=s_dt,
+                end_date=e_dt,
+                tx_type=tx_type,
+                min_amount=min_amount,
+                max_amount=max_amount,
+                limit=page_size,
+                offset=offset,
+                descending=descending,
+            )
+            return [TransactionDTO.from_entity(e) for e in entities], total_count
+
+    def export_ledger_csv(
+        self,
+        transactions: Sequence[TransactionDTO],
+        destination: Optional[Union[str, Path, TextIO]] = None,
+        *,
+        encoding: str = "utf-8",
+        sanitize_formulas: bool = True,
+    ) -> str:
+        """Export ledger transactions directly to RFC-4180 CSV table."""
+        from novabank.application.dto.statement_dto import StatementEntryDTO
+        from novabank.application.services.export_service import ExportService
+
+        entries = [
+            StatementEntryDTO(
+                transaction_id=tx.transaction_id,
+                transaction_ref=tx.transaction_ref,
+                created_at=tx.created_at,
+                transaction_type=tx.transaction_type,
+                direction=tx.direction,
+                description=tx.description,
+                amount=tx.amount,
+                debit_amount=tx.amount if tx.direction == "DEBIT" else None,
+                credit_amount=tx.amount if tx.direction == "CREDIT" else None,
+                balance_after=tx.balance_after,
+                currency=tx.currency,
+                created_by=tx.created_by,
+                formatted_amount=f"${tx.amount:,.2f}",
+                formatted_balance_after=f"${tx.balance_after:,.2f}",
+                formatted_debit=f"${tx.amount:,.2f}" if tx.direction == "DEBIT" else "",
+                formatted_credit=f"${tx.amount:,.2f}" if tx.direction == "CREDIT" else "",
+            )
+            for tx in transactions
+        ]
+        return ExportService.export_transactions_to_csv(
+            entries=entries,
+            destination=destination,
+            encoding=encoding,
+            sanitize_formulas=sanitize_formulas,
+        )
+
+    def accrue_interest(
+        self,
+        annual_rate_percentage: Decimal = Decimal("2.50"),
+        min_qualifying_balance: Decimal = Decimal("100.00"),
+        actor: str = "system",
+    ) -> list[TransactionDTO]:
+        """Execute monthly compounding interest accrual across all qualifying active accounts."""
+        if annual_rate_percentage < Decimal("0.00"):
+            raise InvalidAmountError(f"Interest rate cannot be negative: {annual_rate_percentage}")
+
+        credited_dtos: list[TransactionDTO] = []
+        total_credited = Decimal("0.00")
+
+        # 1. Fetch active accounts
+        with self._session_factory() as session:
+            account_repo = SQLAccountRepository(session)
+            accounts = account_repo.list_accounts(active_only=True, limit=1000)
+
+        min_qual = Money(min_qualifying_balance)
+
+        for acc in accounts:
+            if not acc.is_active or acc.is_frozen or acc.balance < min_qual:
+                continue
+
+            interest = InterestCalculator.calculate_monthly_interest(
+                balance=acc.balance,
+                annual_rate_percentage=annual_rate_percentage,
+                min_qualifying_balance=min_qual,
+            )
+
+            if not interest.is_positive():
+                continue
+
+            acc_str = acc.account_number.value
+            with self._lock_manager.get_lock(acc_str):
+                with self._session_factory() as session:
+                    with session.begin():
+                        account_repo = SQLAccountRepository(session)
+                        tx_repo = SQLTransactionRepository(session)
+                        account = account_repo.get_by_number_for_update(acc_str)
+                        if account is None or not account.is_active or account.is_frozen:
+                            continue
+
+                        locked_interest = InterestCalculator.calculate_monthly_interest(
+                            balance=account.balance,
+                            annual_rate_percentage=annual_rate_percentage,
+                            min_qualifying_balance=min_qual,
+                        )
+                        if not locked_interest.is_positive():
+                            continue
+
+                        tx_entity = account.credit(
+                            amount=locked_interest,
+                            transaction_type=TransactionType.INTEREST,
+                            description=f"Monthly Interest Accrual ({annual_rate_percentage:.2f}% APY)",
+                            ref=f"INT-{uuid.uuid4().hex[:12].upper()}",
+                            actor=actor,
+                        )
+                        account_repo.save(account)
+                        tx_repo.append(tx_entity)
+                        dto = TransactionDTO.from_entity(tx_entity)
+                        credited_dtos.append(dto)
+                        total_credited += locked_interest.amount
+
+        if credited_dtos:
+            event = InterestAccruedEvent(
+                accounts_credited=len(credited_dtos),
+                total_interest_credited=total_credited,
+                annual_rate_percentage=annual_rate_percentage,
+                timestamp=datetime.now(timezone.utc),
+                actor=actor,
+            )
+            self._emit(event)
+
+        return credited_dtos

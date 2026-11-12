@@ -395,3 +395,59 @@ def test_transfer_view_reset_form(qtbot) -> None:
     assert view.source_banner.isVisible() is False
     assert view.dest_banner.isVisible() is False
     assert view.submit_btn.isEnabled() is False
+
+
+def test_transfer_view_beneficiary_picker_and_toggle(qtbot, banking_service) -> None:
+    """Verify saved payees combo population and selection in TransferView."""
+    task_runner = TaskRunner()
+    src = banking_service.open_account(
+        holder_name="Alice Payee Test",
+        dob=date(1985, 4, 10),
+        address_line="123 Oak St",
+        city="Dallas",
+        state="TX",
+        country="USA",
+        phone_number="5554445555",
+        initial_deposit=Decimal("800.00"),
+    )
+    dst = banking_service.open_account(
+        holder_name="Bob Landlord",
+        dob=date(1989, 7, 22),
+        address_line="456 Pine St",
+        city="Austin",
+        state="TX",
+        country="USA",
+        phone_number="5556667777",
+        initial_deposit=Decimal("100.00"),
+    )
+    # Add saved beneficiary in backend
+    banking_service.add_beneficiary(
+        source_account=src.account.account_number,
+        destination_account=dst.account.account_number,
+        nickname="Rent Direct",
+    )
+
+    view = TransferView(banking_service, task_runner)
+    qtbot.addWidget(view)
+    view.show()
+
+    # Enter source account -> loads beneficiaries
+    with qtbot.waitSignal(view.vm.beneficiaries_loaded, timeout=3000):
+        view.source_account_edit.setText(src.account.account_number)
+
+    # Check combo has Rent Direct
+    assert view.payees_combo.count() == 2
+    assert "Rent Direct" in view.payees_combo.itemText(1)
+
+    # Selecting combo item auto-populates dest account and looks it up
+    with qtbot.waitSignal(view.vm.destination_account_found, timeout=3000):
+        view.payees_combo.setCurrentIndex(1)
+
+    assert view.dest_account_edit.text() == dst.account.account_number
+    assert view.dest_banner_name.text() == "Bob Landlord"
+
+    # Test checkbox toggle for saving new payee
+    assert view.payee_nickname_edit.isVisible() is False
+    view.save_payee_chk.setChecked(True)
+    assert view.payee_nickname_edit.isVisible() is True
+

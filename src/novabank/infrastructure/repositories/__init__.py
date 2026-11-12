@@ -2,6 +2,9 @@
 
 from novabank.infrastructure.repositories.sql_account_repository import SQLAccountRepository
 from novabank.infrastructure.repositories.sql_audit_repository import SQLAuditRepository
+from novabank.infrastructure.repositories.sql_beneficiary_repository import (
+    SQLBeneficiaryRepository,
+)
 from novabank.infrastructure.repositories.sql_transaction_repository import (
     SQLTransactionRepository,
 )
@@ -9,5 +12,6 @@ from novabank.infrastructure.repositories.sql_transaction_repository import (
 __all__ = [
     "SQLAccountRepository",
     "SQLAuditRepository",
+    "SQLBeneficiaryRepository",
     "SQLTransactionRepository",
 ]

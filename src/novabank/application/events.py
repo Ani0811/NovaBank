@@ -43,6 +43,26 @@ class AccountClosedEvent:
 
 
 @dataclass(frozen=True)
+class AccountFrozenEvent:
+    """Emitted upon administrative account freeze."""
+
+    account_number: str
+    reason: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class AccountUnfrozenEvent:
+    """Emitted upon administrative account unfreeze."""
+
+    account_number: str
+    reason: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
 class DepositCompletedEvent:
     """Emitted upon successful commit of a cash deposit transaction."""
 
@@ -84,3 +104,39 @@ class TransferCompletedEvent:
     timestamp: datetime
     actor: str = "system"
     description: str = "Account Transfer"
+
+
+@dataclass(frozen=True)
+class BeneficiaryAddedEvent:
+    """Emitted upon registering a new beneficiary/payee contact."""
+
+    source_account: str
+    destination_account: str
+    destination_holder_name: str
+    nickname: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class BeneficiaryRemovedEvent:
+    """Emitted upon removing a beneficiary/payee contact."""
+
+    beneficiary_id: int
+    source_account: str
+    destination_account: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class InterestAccruedEvent:
+    """Emitted upon successful batch accrual of monthly interest."""
+
+    accounts_credited: int
+    total_interest_credited: Decimal
+    annual_rate_percentage: Decimal
+    timestamp: datetime
+    actor: str = "system"
+
+

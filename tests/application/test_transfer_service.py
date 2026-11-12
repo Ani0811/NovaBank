@@ -360,3 +360,27 @@ def test_transfer_with_value_objects(db_setup):
     assert result.amount == Decimal("25.00")
     assert result.source_transaction.balance_after == Decimal("125.00")
     assert result.destination_transaction.balance_after == Decimal("75.00")
+
+
+def test_transfer_frozen_source_account_rejected(db_setup):
+    """Verify that transfers from a frozen source account are blocked."""
+    from novabank.domain.exceptions import AccountFrozenError
+
+    session_factory, _ = db_setup
+    create_account(session_factory, "300000000019", "Frozen Sender", balance="400.00")
+    create_account(session_factory, "300000000020", "Receiver", balance="100.00")
+
+    service = BankingService(session_factory=session_factory)
+    service.freeze_account("300000000019", reason="AML review")
+
+    with pytest.raises(AccountFrozenError, match="administratively frozen"):
+        service.transfer(
+            source_account_number="300000000019",
+            destination_account_number="300000000020",
+            amount=Decimal("100.00"),
+        )
+
+    # Destination balance remains untouched
+    with session_factory() as sess:
+        acc_dst = SQLAccountRepository(sess).get_by_number("300000000020")
+        assert acc_dst.balance == Money("100.00")

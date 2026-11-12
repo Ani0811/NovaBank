@@ -206,3 +206,39 @@ def test_profile_update():
     assert account.city == "Gotham"
     assert account.phone_number == "9876543210"
     assert account.version == 2
+
+
+def test_account_freeze_and_unfreeze_lifecycle():
+    """Verify administrative risk freeze blocks debits but allows credits and can be unfreezed."""
+    from novabank.domain.exceptions import AccountFrozenError
+
+    account = create_sample_account("250.00")
+    assert account.is_frozen is False
+
+    # Freeze account
+    account.freeze(reason="Suspicious wire transfer")
+    assert account.is_frozen is True
+    assert account.version == 2
+
+    # Cannot freeze twice
+    with pytest.raises(DomainError, match="already frozen"):
+        account.freeze()
+
+    # Inbound credit is permitted while frozen (accepting funds/clearing obligations)
+    tx_credit = account.credit(Money("50.00"), description="Inbound clearing")
+    assert account.balance == Money("300.00")
+    assert tx_credit.amount == Money("50.00")
+
+    # Outgoing debit is strictly prohibited
+    with pytest.raises(AccountFrozenError, match="administratively frozen"):
+        account.debit(Money("20.00"))
+
+    # Unfreeze account
+    account.unfreeze(reason="KYC verification cleared")
+    assert account.is_frozen is False
+    assert account.version == 4
+
+    # Now debit works normally
+    tx_debit = account.debit(Money("100.00"))
+    assert account.balance == Money("200.00")
+    assert tx_debit.amount == Money("100.00")

@@ -20,6 +20,8 @@ class AccountDetailViewModel(QObject):
     account_loaded = Signal(object)  # AccountDTO
     profile_updated = Signal(object)  # AccountDTO
     account_closed = Signal(object)  # AccountDTO
+    account_frozen = Signal(object)  # AccountDTO
+    account_unfrozen = Signal(object)  # AccountDTO
     loading_changed = Signal(bool)
     validation_changed = Signal(bool, dict)
     operation_error = Signal(str)
@@ -236,6 +238,74 @@ class AccountDetailViewModel(QObject):
 
         self.task_runner.run_async(
             _close,
+            on_result=_on_success,
+            on_error=_on_error,
+            on_finished=_on_finished,
+        )
+
+    def freeze_account(self, reason: str = "Administrative hold", actor: str = "teller") -> None:
+        """Place administrative hold on account, restricting outgoing transactions."""
+        if not self.account or not self.banking_service or not self.task_runner:
+            return
+
+        self.is_loading = True
+        self.loading_changed.emit(True)
+        acc_num = self.account.account_number
+
+        def _freeze():
+            return self.banking_service.freeze_account(
+                account_number=acc_num,
+                reason=reason,
+                actor=actor,
+            )
+
+        def _on_success(frozen_dto: AccountDTO):
+            self.account = frozen_dto
+            self.account_frozen.emit(frozen_dto)
+
+        def _on_error(exc: Exception, tb: str):
+            self.operation_error.emit(str(exc))
+
+        def _on_finished():
+            self.is_loading = False
+            self.loading_changed.emit(False)
+
+        self.task_runner.run_async(
+            _freeze,
+            on_result=_on_success,
+            on_error=_on_error,
+            on_finished=_on_finished,
+        )
+
+    def unfreeze_account(self, reason: str = "Hold released", actor: str = "teller") -> None:
+        """Release administrative hold on account, restoring full debit capabilities."""
+        if not self.account or not self.banking_service or not self.task_runner:
+            return
+
+        self.is_loading = True
+        self.loading_changed.emit(True)
+        acc_num = self.account.account_number
+
+        def _unfreeze():
+            return self.banking_service.unfreeze_account(
+                account_number=acc_num,
+                reason=reason,
+                actor=actor,
+            )
+
+        def _on_success(unfrozen_dto: AccountDTO):
+            self.account = unfrozen_dto
+            self.account_unfrozen.emit(unfrozen_dto)
+
+        def _on_error(exc: Exception, tb: str):
+            self.operation_error.emit(str(exc))
+
+        def _on_finished():
+            self.is_loading = False
+            self.loading_changed.emit(False)
+
+        self.task_runner.run_async(
+            _unfreeze,
             on_result=_on_success,
             on_error=_on_error,
             on_finished=_on_finished,
