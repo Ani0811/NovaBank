@@ -170,9 +170,12 @@ class MainWindow(QMainWindow):
         header_actions = QHBoxLayout()
         header_actions.setSpacing(10)
 
-        self.env_badge = QLabel("Operational • Secure")
-        self.env_badge.setProperty("class", "StatusIndicatorPill")
-        self.env_badge.setProperty("status", "success")
+        self.env_badge = QLabel("● Core Ledger Online")
+        self.env_badge.setObjectName("EnvBadge")
+        self.env_badge.setStyleSheet(
+            "QLabel#EnvBadge { color: #15803D; font-size: 11px; font-weight: 600; "
+            "background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 4px; padding: 4px 10px; }"
+        )
         header_actions.addWidget(self.env_badge)
 
         header_bar_layout.addLayout(header_actions)
@@ -289,6 +292,8 @@ class MainWindow(QMainWindow):
         # 3. Status Bar
         self.status_bar = NovaStatusBar(self)
         self.setStatusBar(self.status_bar)
+        if self.banking_service:
+            self.status_bar.set_db_status(connected=True, details="(Online)")
 
         # Set default view
         self.navigate_to("dashboard")

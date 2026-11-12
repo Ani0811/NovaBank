@@ -22,30 +22,35 @@ class NovaStatusBar(QStatusBar):
         # Left-hand operational telemetry
         self._system_indicator = QLabel("NovaBank Core Engine • TLS 1.3 Verified")
         self._system_indicator.setObjectName("SystemTelemetryLabel")
-        self._system_indicator.setStyleSheet("color: #94A3B8; font-size: 11px; padding-left: 4px;")
+        self._system_indicator.setStyleSheet("color: #64748B; font-size: 11px; padding-left: 4px; font-weight: 500;")
         self.addWidget(self._system_indicator)
 
-        # Session indicator
+        # Session indicator (plain flat text, no pill)
         self._session_indicator = QLabel("Session: Default Session (Main Branch)")
         self._session_indicator.setObjectName("SessionIndicator")
-        self._session_indicator.setProperty("class", "StatusIndicatorPill")
         self._session_indicator.setProperty("status", "neutral")
 
-        # AI Assistant indicator
-        self._ai_indicator = QLabel("AI Assistant: Ready")
+        # AI Assistant indicator (plain flat text with status dot)
+        self._ai_indicator = QLabel("● AI Assistant: Ready")
         self._ai_indicator.setObjectName("AiStatusIndicator")
-        self._ai_indicator.setProperty("class", "StatusIndicatorPill")
         self._ai_indicator.setProperty("status", "success")
 
-        # Database indicator
-        self._db_indicator = QLabel("Database: Initializing")
+        # Database indicator (plain flat text with status dot)
+        self._db_indicator = QLabel("● Database: Connected (Online)")
         self._db_indicator.setObjectName("DbStatusIndicator")
-        self._db_indicator.setProperty("class", "StatusIndicatorPill")
-        self._db_indicator.setProperty("status", "warning")
+        self._db_indicator.setProperty("status", "success")
+
+        # Micro-separator helper
+        def _sep() -> QLabel:
+            s = QLabel("|")
+            s.setStyleSheet("color: #CBD5E1; font-size: 11px; margin: 0 4px;")
+            return s
 
         # Add indicators as permanent widgets to right side of status bar
         self.addPermanentWidget(self._session_indicator)
+        self.addPermanentWidget(_sep())
         self.addPermanentWidget(self._ai_indicator)
+        self.addPermanentWidget(_sep())
         self.addPermanentWidget(self._db_indicator)
 
     def set_db_status(self, connected: bool, details: str = "") -> None:

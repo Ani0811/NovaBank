@@ -91,19 +91,20 @@ QFrame#SidebarOperatorCard {
 QFrame#HeaderBar {
     background-color: #FFFFFF;
     border-bottom: 1px solid #E2E8F0;
-    min-height: 64px;
-    max-height: 64px;
-    padding: 0 28px;
+    min-height: 52px;
+    max-height: 52px;
+    padding: 0 20px;
 }
 
 QLabel#HeaderTitle {
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 700;
     color: #172033;
+    letter-spacing: -0.2px;
 }
 
 QLabel#HeaderSubtitle {
-    font-size: 13px;
+    font-size: 12px;
     color: #64748B;
 }
 
@@ -114,7 +115,7 @@ QFrame.CardFrame {
     background-color: #FFFFFF;
     border: 1px solid #E2E8F0;
     border-radius: 8px;
-    padding: 20px;
+    padding: 12px 14px;
 }
 
 QFrame.CardFrame:hover {
@@ -122,22 +123,22 @@ QFrame.CardFrame:hover {
 }
 
 QLabel.CardTitle {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
     color: #64748B;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 QLabel.CardValue {
-    font-size: 26px;
+    font-size: 20px;
     font-weight: 700;
     color: #172033;
     font-feature-settings: "tnum";
 }
 
 QLabel.CardMuted {
-    font-size: 12px;
+    font-size: 11px;
     color: #64748B;
 }
 
@@ -454,29 +455,29 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 /* -------------------------------------------------------------------------
    Generic Status Indicator Badges (used in content headers & cards)
    ------------------------------------------------------------------------- */
-QLabel.StatusIndicatorPill {
+QLabel[class="StatusIndicatorPill"] {
     background-color: #F1F5F9;
     border-radius: 12px;
-    padding: 4px 12px;
+    padding: 3px 10px;
     font-size: 11px;
     font-weight: 600;
     color: #475569;
     border: 1px solid #E2E8F0;
 }
 
-QLabel.StatusIndicatorPill[status="success"] {
+QLabel[class="StatusIndicatorPill"][status="success"] {
     color: #15803D;
     border: 1px solid #BBF7D0;
     background-color: #F0FDF4;
 }
 
-QLabel.StatusIndicatorPill[status="warning"] {
+QLabel[class="StatusIndicatorPill"][status="warning"] {
     color: #B45309;
     border: 1px solid #FDE68A;
     background-color: #FFFBEB;
 }
 
-QLabel.StatusIndicatorPill[status="danger"] {
+QLabel[class="StatusIndicatorPill"][status="danger"] {
     color: #DC2626;
     border: 1px solid #FECACA;
     background-color: #FEF2F2;
@@ -500,44 +501,28 @@ QStatusBar#NovaStatusBar QLabel {
     border: none;
     font-size: 11px;
     color: #64748B;
+    padding: 0 4px;
 }
 
-QStatusBar#NovaStatusBar QLabel.StatusIndicatorPill {
-    background-color: transparent;
-    border: none;
-    border-left: 1px solid #E2E8F0;
-    border-radius: 0px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: 500;
-    color: #475569;
-}
-
-QStatusBar#NovaStatusBar QLabel.StatusIndicatorPill[status="success"] {
+QStatusBar#NovaStatusBar QLabel[status="success"] {
     color: #15803D;
-    background-color: transparent;
-    border-top: none;
-    border-right: none;
-    border-bottom: none;
-    border-left: 1px solid #E2E8F0;
+    font-weight: 600;
+    background: transparent;
+    border: none;
 }
 
-QStatusBar#NovaStatusBar QLabel.StatusIndicatorPill[status="warning"] {
+QStatusBar#NovaStatusBar QLabel[status="warning"] {
     color: #B45309;
-    background-color: transparent;
-    border-top: none;
-    border-right: none;
-    border-bottom: none;
-    border-left: 1px solid #E2E8F0;
+    font-weight: 600;
+    background: transparent;
+    border: none;
 }
 
-QStatusBar#NovaStatusBar QLabel.StatusIndicatorPill[status="danger"] {
+QStatusBar#NovaStatusBar QLabel[status="danger"] {
     color: #DC2626;
-    background-color: transparent;
-    border-top: none;
-    border-right: none;
-    border-bottom: none;
-    border-left: 1px solid #E2E8F0;
+    font-weight: 600;
+    background: transparent;
+    border: none;
 }
 
 QStatusBar#NovaStatusBar::item {
