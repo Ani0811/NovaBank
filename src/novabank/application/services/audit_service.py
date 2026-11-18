@@ -18,6 +18,9 @@ from novabank.application.events import (
     BeneficiaryRemovedEvent,
     DepositCompletedEvent,
     InterestAccruedEvent,
+    LoanOriginatedEvent,
+    LoanPaidOffEvent,
+    LoanRepaymentProcessedEvent,
     PaymentDeclinedEvent,
     PaymentProcessedEvent,
     PaymentRefundedEvent,
@@ -45,6 +48,9 @@ class AuditService:
     EVENT_PAYMENT_PROCESSED = "PAYMENT_PROCESSED"
     EVENT_PAYMENT_REFUNDED = "PAYMENT_REFUNDED"
     EVENT_PAYMENT_DECLINED = "PAYMENT_DECLINED"
+    EVENT_LOAN_ORIGINATED = "LOAN_ORIGINATED"
+    EVENT_LOAN_REPAYMENT = "LOAN_REPAYMENT"
+    EVENT_LOAN_PAID_OFF = "LOAN_PAID_OFF"
 
     def __init__(
         self, session_factory: Union[sessionmaker[Session], Callable[[], Session]]
@@ -270,6 +276,51 @@ class AuditService:
                     "account_number": event.account_number,
                     "amount": str(event.amount),
                     "reason": event.reason,
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, LoanOriginatedEvent):
+            return self.record_event(
+                event_type=self.EVENT_LOAN_ORIGINATED,
+                entity_type="LOAN",
+                entity_id=event.loan_id,
+                actor=event.actor,
+                payload={
+                    "account_number": event.account_number,
+                    "principal": str(event.principal),
+                    "interest_rate_apr": str(event.interest_rate_apr),
+                    "term_months": event.term_months,
+                    "monthly_installment": str(event.monthly_installment),
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, LoanRepaymentProcessedEvent):
+            return self.record_event(
+                event_type=self.EVENT_LOAN_REPAYMENT,
+                entity_type="LOAN",
+                entity_id=event.loan_id,
+                actor=event.actor,
+                payload={
+                    "account_number": event.account_number,
+                    "amount": str(event.amount),
+                    "principal_portion": str(event.principal_portion),
+                    "interest_portion": str(event.interest_portion),
+                    "remaining_balance": str(event.remaining_balance),
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, LoanPaidOffEvent):
+            return self.record_event(
+                event_type=self.EVENT_LOAN_PAID_OFF,
+                entity_type="LOAN",
+                entity_id=event.loan_id,
+                actor=event.actor,
+                payload={
+                    "account_number": event.account_number,
+                    "total_principal_paid": str(event.total_principal_paid),
                 },
                 timestamp=event.timestamp,
             )

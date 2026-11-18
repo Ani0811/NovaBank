@@ -143,7 +143,8 @@ def test_submit_payment_workflow(qtbot, banking_service, task_runner, seed_accou
     qtbot.addWidget(view)
     view.show()
 
-    view.acc_input.setText(seed_account)
+    with qtbot.waitSignal(view.vm.account_found, timeout=4000):
+        view.acc_input.setText(seed_account)
     view.amt_input.setText("200.00")
     view.card_num_input.setText("4242424242424242")
     view.card_holder_input.setText("Corporate Buyer LLC")

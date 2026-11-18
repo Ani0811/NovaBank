@@ -78,6 +78,11 @@ def test_programmatic_navigation(qtbot):
     assert window.current_view_key == "settings"
     assert window.header_title.text() == "System Settings"
 
+    window.navigate_to("loans")
+    assert window.current_view_key == "loans"
+    assert window.header_title.text() == "Commercial Loan Desk"
+    assert window.loan_desk_view is not None
+
 
 def test_status_bar_updates(qtbot):
     """Verify status bar indicator text and property updates."""

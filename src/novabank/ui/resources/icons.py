@@ -59,6 +59,19 @@ LUCIDE_SVGS: dict[str, str] = {
         '<rect width="20" height="14" x="2" y="5" rx="2"/>'
         '<line x1="2" x2="22" y1="10" y2="10"/>'
     ),
+    "landmark": (
+        '<line x1="3" x2="21" y1="22" y2="22"/>'
+        '<line x1="6" x2="6" y1="18" y2="11"/>'
+        '<line x1="10" x2="10" y1="18" y2="11"/>'
+        '<line x1="14" x2="14" y1="18" y2="11"/>'
+        '<line x1="18" x2="18" y1="18" y2="11"/>'
+        '<polygon points="12 2 20 7 4 7"/>'
+    ),
+    "percent": (
+        '<line x1="19" x2="5" y1="5" y2="19"/>'
+        '<circle cx="6.5" cy="6.5" r="2.5"/>'
+        '<circle cx="17.5" cy="17.5" r="2.5"/>'
+    ),
     "audit_logs": (
         '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>'
         '<path d="m9 12 2 2 4-4"/>'

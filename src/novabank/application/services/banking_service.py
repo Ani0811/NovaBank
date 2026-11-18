@@ -18,6 +18,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from novabank.application.dto.account_dto import AccountDTO, OpenAccountResultDTO
 from novabank.application.dto.beneficiary_dto import BeneficiaryDTO
+from novabank.application.dto.loan_dto import (
+    AmortizationScheduleEntryDTO,
+    LoanContractDTO,
+    LoanOriginationRequestDTO,
+    LoanQuoteRequestDTO,
+    LoanQuoteResponseDTO,
+    LoanRepaymentResultDTO,
+)
 from novabank.application.dto.payment_dto import (
     PaymentRefundResultDTO,
     PaymentRequestDTO,
@@ -33,6 +41,9 @@ from novabank.application.events import (
     BeneficiaryRemovedEvent,
     DepositCompletedEvent,
     InterestAccruedEvent,
+    LoanOriginatedEvent,
+    LoanPaidOffEvent,
+    LoanRepaymentProcessedEvent,
     PaymentDeclinedEvent,
     PaymentProcessedEvent,
     PaymentRefundedEvent,
@@ -42,6 +53,7 @@ from novabank.application.events import (
 )
 from novabank.domain.entities.account import Account
 from novabank.domain.entities.beneficiary import Beneficiary
+from novabank.domain.entities.loan import LoanContract, LoanStatus, LoanType
 from novabank.domain.entities.payment import (
     PaymentChannel,
     PaymentDirection,
@@ -56,10 +68,16 @@ from novabank.domain.exceptions import (
     DuplicateIdempotencyKeyError,
     InsufficientFundsError,
     InvalidAmountError,
+    InvalidLoanTermsError,
+    LoanAlreadyPaidOffError,
+    LoanDisbursementError,
+    LoanError,
+    LoanNotFoundError,
     PaymentDeclinedError,
     PaymentRefundError,
     SelfTransferError,
 )
+from novabank.domain.services.amortization_calculator import AmortizationCalculator
 from novabank.domain.services.interest_calculator import InterestCalculator
 from novabank.domain.value_objects.account_number import AccountNumber
 from novabank.domain.value_objects.money import Money
@@ -67,6 +85,7 @@ from novabank.domain.value_objects.transaction_type import TransactionType
 from novabank.infrastructure.gateways.payment_rails_simulator import PaymentRailsSimulator
 from novabank.infrastructure.repositories.sql_account_repository import SQLAccountRepository
 from novabank.infrastructure.repositories.sql_beneficiary_repository import SQLBeneficiaryRepository
+from novabank.infrastructure.repositories.sql_loan_repository import SQLLoanRepository
 from novabank.infrastructure.repositories.sql_payment_repository import SQLPaymentRepository
 from novabank.infrastructure.repositories.sql_transaction_repository import SQLTransactionRepository
 
@@ -1376,3 +1395,343 @@ class BankingService:
 
         csv_content = string_buffer.getvalue()
         return ExportService._deliver_output(csv_content, destination, encoding)
+
+    # -------------------------------------------------------------------------
+    # Commercial Loan Hub & Amortization Engine
+    # -------------------------------------------------------------------------
+
+    def calculate_loan_quote(
+        self,
+        principal: Decimal,
+        apr_percentage: Decimal,
+        term_months: int,
+    ) -> LoanQuoteResponseDTO:
+        """Simulate Equal Monthly Installment (EMI) and interest figures without persistence."""
+        principal_money = Money(principal)
+        emi = AmortizationCalculator.calculate_monthly_installment(
+            principal=principal_money,
+            apr_percentage=apr_percentage,
+            term_months=term_months,
+        )
+        schedule = AmortizationCalculator.generate_amortization_schedule(
+            principal=principal_money,
+            apr_percentage=apr_percentage,
+            term_months=term_months,
+        )
+        total_interest = sum((entry.interest_amount.amount for entry in schedule), Decimal("0.00"))
+        total_payable = principal + total_interest
+
+        return LoanQuoteResponseDTO(
+            principal=principal,
+            apr_percentage=apr_percentage,
+            term_months=term_months,
+            monthly_installment=emi.amount,
+            total_interest=total_interest,
+            total_payable=total_payable,
+        )
+
+    def originate_loan(
+        self,
+        request: LoanOriginationRequestDTO,
+        actor: str = "lending_officer",
+    ) -> LoanContractDTO:
+        """Originate, underwrite, disburse, and persist a commercial loan facility."""
+        acc_str = str(request.account_number).strip().replace("-", "").replace(" ", "")
+        principal_money = Money(request.principal)
+
+        if not principal_money.is_positive():
+            raise InvalidLoanTermsError("Principal amount must be positive.")
+        if request.term_months <= 0 or request.term_months > 360:
+            raise InvalidLoanTermsError(f"Loan term must be between 1 and 360 months, got {request.term_months}.")
+        if request.apr_percentage <= Decimal("0.00") or request.apr_percentage > Decimal("100.00"):
+            raise InvalidLoanTermsError(f"APR rate must be between 0.01% and 100.00%, got {request.apr_percentage}%.")
+
+        loan_id = f"LN-{uuid.uuid4().hex[:8].upper()}"
+        schedule = AmortizationCalculator.generate_amortization_schedule(
+            principal=principal_money,
+            apr_percentage=request.apr_percentage,
+            term_months=request.term_months,
+        )
+        emi = AmortizationCalculator.calculate_monthly_installment(
+            principal=principal_money,
+            apr_percentage=request.apr_percentage,
+            term_months=request.term_months,
+        )
+        total_interest = Money(sum(item.interest_amount.amount for item in schedule))
+
+        loan = LoanContract(
+            loan_id=loan_id,
+            account_number=AccountNumber(acc_str),
+            loan_type=LoanType(request.loan_type),
+            principal_amount=principal_money,
+            interest_rate_apr=request.apr_percentage,
+            term_months=request.term_months,
+            monthly_installment=emi,
+            outstanding_balance=principal_money,
+            total_interest=total_interest,
+            status=LoanStatus.SUBMITTED,
+            schedule=schedule,
+            purpose=request.purpose,
+        )
+        loan.disburse(actor)
+
+        # Atomic disbursement into borrower account
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    account_repo = SQLAccountRepository(session)
+                    tx_repo = SQLTransactionRepository(session)
+                    loan_repo = SQLLoanRepository(session)
+
+                    account = account_repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+                    if not account.is_active:
+                        raise AccountClosedError(acc_str)
+                    if account.is_frozen:
+                        raise AccountFrozenError(acc_str)
+
+                    # Credit borrower checking account
+                    tx_entity = account.credit(
+                        amount=principal_money,
+                        transaction_type=TransactionType.DEPOSIT,
+                        description=f"Loan Disbursement: {loan.loan_id} ({request.loan_type})",
+                        ref=f"TXN-DISB-{uuid.uuid4().hex[:8].upper()}",
+                        actor=actor,
+                    )
+
+                    account_repo.save(account)
+                    tx_repo.append(tx_entity)
+                    loan_repo.save(loan)
+
+                    deposit_event = DepositCompletedEvent(
+                        account_number=account.account_number.value,
+                        amount=principal_money.amount,
+                        balance_after=account.balance.amount,
+                        currency=account.balance.currency,
+                        transaction_ref=tx_entity.transaction_ref,
+                        timestamp=tx_entity.created_at,
+                        actor=actor,
+                        description=tx_entity.description,
+                    )
+
+                    origination_event = LoanOriginatedEvent(
+                        loan_id=loan.loan_id,
+                        account_number=loan.account_number.value,
+                        principal=loan.principal_amount.amount,
+                        interest_rate_apr=loan.interest_rate_apr,
+                        term_months=loan.term_months,
+                        monthly_installment=loan.monthly_installment.amount,
+                        timestamp=loan.originated_at,
+                        actor=actor,
+                    )
+
+        self._emit(deposit_event)
+        self._emit(origination_event)
+        return LoanContractDTO.from_entity(loan)
+
+    def repay_loan_installment(
+        self,
+        loan_id: str,
+        amount: Optional[Decimal] = None,
+        actor: str = "teller",
+    ) -> LoanRepaymentResultDTO:
+        """Atomically debit borrower account and settle scheduled amortization installment."""
+        with self._session_factory() as session:
+            loan_repo = SQLLoanRepository(session)
+            loan = loan_repo.get_by_id(loan_id)
+            if loan is None:
+                raise LoanNotFoundError(f"Loan facility '{loan_id}' not found.")
+
+        if loan.status == LoanStatus.PAID_OFF:
+            raise LoanAlreadyPaidOffError(f"Loan '{loan_id}' is already paid off in full.")
+
+        target_entry = next((e for e in loan.schedule if not e.is_paid), None)
+        if target_entry is None:
+            raise LoanAlreadyPaidOffError(f"Loan '{loan_id}' has no remaining unpaid installments.")
+
+        repayment_money = Money(amount) if amount is not None else target_entry.payment_amount
+        acc_str = loan.account_number.value
+
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    account_repo = SQLAccountRepository(session)
+                    tx_repo = SQLTransactionRepository(session)
+                    loan_repo = SQLLoanRepository(session)
+
+                    account = account_repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+                    if not account.is_active:
+                        raise AccountClosedError(acc_str)
+                    if account.is_frozen:
+                        raise AccountFrozenError(acc_str)
+
+                    if account.balance < repayment_money:
+                        raise InsufficientFundsError(
+                            f"Account {acc_str} has insufficient funds for loan repayment: {account.balance.formatted()} available vs {repayment_money.formatted()} required."
+                        )
+
+                    # Reload loan within transaction for concurrency safety
+                    locked_loan = loan_repo.get_by_id(loan_id)
+                    if locked_loan is None:
+                        raise LoanNotFoundError(f"Loan facility '{loan_id}' not found.")
+
+                    principal_paid, interest_paid = locked_loan.process_repayment(
+                        amount=repayment_money,
+                        actor=actor,
+                    )
+
+                    # Debit borrower account
+                    tx_entity = account.debit(
+                        amount=repayment_money,
+                        transaction_type=TransactionType.WITHDRAWAL,
+                        description=f"Loan Repayment: {loan_id} - Inst #{target_entry.installment_number}",
+                        ref=f"TXN-REPAY-{uuid.uuid4().hex[:8].upper()}",
+                        actor=actor,
+                    )
+
+                    account_repo.save(account)
+                    tx_repo.append(tx_entity)
+                    loan_repo.save(locked_loan)
+
+                    now = datetime.now(timezone.utc)
+                    withdrawal_event = WithdrawalCompletedEvent(
+                        account_number=account.account_number.value,
+                        amount=repayment_money.amount,
+                        balance_after=account.balance.amount,
+                        currency=account.balance.currency,
+                        transaction_ref=tx_entity.transaction_ref,
+                        timestamp=tx_entity.created_at,
+                        actor=actor,
+                        description=tx_entity.description,
+                    )
+
+                    repayment_event = LoanRepaymentProcessedEvent(
+                        loan_id=locked_loan.loan_id,
+                        account_number=locked_loan.account_number.value,
+                        amount=repayment_money.amount,
+                        principal_portion=principal_paid.amount,
+                        interest_portion=interest_paid.amount,
+                        remaining_balance=locked_loan.outstanding_balance.amount,
+                        timestamp=now,
+                        actor=actor,
+                    )
+
+                    paid_off_event = None
+                    if locked_loan.status == LoanStatus.PAID_OFF:
+                        paid_off_event = LoanPaidOffEvent(
+                            loan_id=locked_loan.loan_id,
+                            account_number=locked_loan.account_number.value,
+                            total_principal_paid=locked_loan.principal_amount.amount,
+                            timestamp=now,
+                            actor=actor,
+                        )
+
+                    result_dto = LoanRepaymentResultDTO(
+                        loan_id=locked_loan.loan_id,
+                        account_number=locked_loan.account_number.value,
+                        installment_number=target_entry.installment_number,
+                        repayment_amount=repayment_money.amount,
+                        principal_portion=principal_paid.amount,
+                        interest_portion=interest_paid.amount,
+                        remaining_balance=locked_loan.outstanding_balance.amount,
+                        new_status=locked_loan.status.value,
+                        next_due_date=locked_loan.next_due_date.isoformat() if locked_loan.next_due_date else None,
+                        timestamp=now,
+                    )
+
+        self._emit(withdrawal_event)
+        self._emit(repayment_event)
+        if paid_off_event:
+            self._emit(paid_off_event)
+
+        return result_dto
+
+    def get_loan(self, loan_id: str) -> Optional[LoanContractDTO]:
+        """Fetch a specific loan facility by facility identifier."""
+        with self._session_factory() as session:
+            loan_repo = SQLLoanRepository(session)
+            loan = loan_repo.get_by_id(loan_id)
+            return LoanContractDTO.from_entity(loan) if loan is not None else None
+
+    def list_loans(
+        self,
+        account_number: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[LoanContractDTO], int]:
+        """List paginated loan contracts with optional account and status filters."""
+        limit = max(1, page_size)
+        offset = max(0, (page - 1) * limit)
+        with self._session_factory() as session:
+            loan_repo = SQLLoanRepository(session)
+            loans, total = loan_repo.list_loans(
+                account_number=account_number,
+                status=status,
+                limit=limit,
+                offset=offset,
+            )
+            return [LoanContractDTO.from_entity(ln) for ln in loans], total
+
+    def export_loan_schedule_csv(
+        self,
+        loan_id: str,
+        destination: Optional[Union[str, Path, TextIO]] = None,
+        *,
+        encoding: str = "utf-8",
+        sanitize_formulas: bool = True,
+    ) -> str:
+        """Export loan amortization schedule directly to RFC-4180 CSV."""
+        import csv
+        import io
+        from novabank.application.services.export_service import ExportService
+
+        loan = self.get_loan(loan_id)
+        if loan is None:
+            raise LoanNotFoundError(f"Loan facility '{loan_id}' not found.")
+
+        string_buffer = io.StringIO()
+        writer = csv.writer(string_buffer, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
+
+        # File header with metadata
+        writer.writerow(["# NovaBank Commercial Loan Amortization Schedule"])
+        writer.writerow(["# Facility ID", loan.loan_id])
+        writer.writerow(["# Borrower Account", loan.account_number])
+        writer.writerow(["# Principal", f"{loan.principal_amount:.2f}"])
+        writer.writerow(["# APR Rate", f"{loan.interest_rate_apr}%"])
+        writer.writerow(["# Term (Months)", str(loan.term_months)])
+        writer.writerow(["# Monthly Installment", f"{loan.monthly_installment:.2f}"])
+        writer.writerow([])
+
+        headers = [
+            "Installment #",
+            "Due Date",
+            "Monthly Payment",
+            "Principal Paid",
+            "Interest Paid",
+            "Remaining Balance",
+            "Status",
+            "Settled Date",
+        ]
+        writer.writerow(headers)
+
+        for entry in loan.schedule:
+            status_label = "SETTLED" if entry.is_paid else "SCHEDULED"
+            row = [
+                entry.installment_number,
+                entry.due_date,
+                f"{entry.payment_amount:.2f}",
+                f"{entry.principal_amount:.2f}",
+                f"{entry.interest_amount:.2f}",
+                f"{entry.remaining_balance:.2f}",
+                status_label,
+                entry.paid_date or "—",
+            ]
+            writer.writerow(row)
+
+        csv_content = string_buffer.getvalue()
+        return ExportService._deliver_output(csv_content, destination, encoding)
+

@@ -24,6 +24,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from novabank.domain.entities.account import Account
 from novabank.domain.entities.beneficiary import Beneficiary
+from novabank.domain.entities.loan import (
+    AmortizationScheduleEntry,
+    LoanContract,
+    LoanStatus,
+    LoanType,
+)
 from novabank.domain.entities.payment import (
     PaymentChannel,
     PaymentDirection,
@@ -365,4 +371,121 @@ class PaymentTransactionModel(Base):
             created_at=entity.created_at,
             settled_at=entity.settled_at,
         )
+
+
+class LoanContractModel(Base):
+    """Relational model for commercial loans, credit lines, and amortization schedules."""
+
+    __tablename__ = "loan_contracts"
+
+    loan_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    account_number: Mapped[str] = mapped_column(
+        String(12), ForeignKey("accounts.account_number"), nullable=False
+    )
+    loan_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    principal_amount: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2, asdecimal=True), nullable=False
+    )
+    interest_rate_apr: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2, asdecimal=True), nullable=False
+    )
+    term_months: Mapped[int] = mapped_column(Integer, nullable=False)
+    monthly_installment: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2, asdecimal=True), nullable=False
+    )
+    outstanding_balance: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2, asdecimal=True), nullable=False
+    )
+    total_interest: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2, asdecimal=True), nullable=False
+    )
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="SUBMITTED", nullable=False)
+    purpose: Mapped[str] = mapped_column(String(255), default="Commercial Financing", nullable=False)
+    originated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    next_due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    schedule_json: Mapped[Any] = mapped_column(JSON, nullable=False)
+
+    __table_args__ = (
+        Index("idx_loan_account", "account_number"),
+        Index("idx_loan_status", "status"),
+        Index("idx_loan_originated", "originated_at"),
+    )
+
+    def to_entity(self) -> LoanContract:
+        """Convert ORM model to pure Domain LoanContract entity."""
+        entries: list[AmortizationScheduleEntry] = []
+        if self.schedule_json and isinstance(self.schedule_json, list):
+            for item in self.schedule_json:
+                entries.append(
+                    AmortizationScheduleEntry(
+                        installment_number=int(item["installment_number"]),
+                        due_date=date.fromisoformat(item["due_date"])
+                        if isinstance(item["due_date"], str)
+                        else item["due_date"],
+                        payment_amount=Money(Decimal(str(item["payment_amount"])), currency=self.currency),
+                        principal_amount=Money(Decimal(str(item["principal_amount"])), currency=self.currency),
+                        interest_amount=Money(Decimal(str(item["interest_amount"])), currency=self.currency),
+                        remaining_balance=Money(Decimal(str(item["remaining_balance"])), currency=self.currency),
+                        is_paid=bool(item.get("is_paid", False)),
+                        paid_date=date.fromisoformat(item["paid_date"])
+                        if item.get("paid_date")
+                        else None,
+                    )
+                )
+
+        return LoanContract(
+            loan_id=self.loan_id,
+            account_number=AccountNumber(self.account_number),
+            loan_type=LoanType(self.loan_type),
+            principal_amount=Money(self.principal_amount, currency=self.currency),
+            interest_rate_apr=self.interest_rate_apr,
+            term_months=self.term_months,
+            monthly_installment=Money(self.monthly_installment, currency=self.currency),
+            outstanding_balance=Money(self.outstanding_balance, currency=self.currency),
+            total_interest=Money(self.total_interest, currency=self.currency),
+            status=LoanStatus(self.status),
+            originated_at=self.originated_at,
+            next_due_date=self.next_due_date,
+            schedule=entries,
+            purpose=self.purpose,
+        )
+
+    @classmethod
+    def from_entity(cls, entity: LoanContract) -> LoanContractModel:
+        """Construct ORM model from pure Domain LoanContract entity."""
+        schedule_data = [
+            {
+                "installment_number": item.installment_number,
+                "due_date": item.due_date.isoformat(),
+                "payment_amount": str(item.payment_amount.amount),
+                "principal_amount": str(item.principal_amount.amount),
+                "interest_amount": str(item.interest_amount.amount),
+                "remaining_balance": str(item.remaining_balance.amount),
+                "is_paid": item.is_paid,
+                "paid_date": item.paid_date.isoformat() if item.paid_date else None,
+            }
+            for item in entity.schedule
+        ]
+
+        return cls(
+            loan_id=entity.loan_id,
+            account_number=entity.account_number.value,
+            loan_type=entity.loan_type.value,
+            principal_amount=entity.principal_amount.amount,
+            interest_rate_apr=entity.interest_rate_apr,
+            term_months=entity.term_months,
+            monthly_installment=entity.monthly_installment.amount,
+            outstanding_balance=entity.outstanding_balance.amount,
+            total_interest=entity.total_interest.amount,
+            currency=entity.principal_amount.currency,
+            status=entity.status.value,
+            purpose=entity.purpose,
+            originated_at=entity.originated_at,
+            next_due_date=entity.next_due_date,
+            schedule_json=schedule_data,
+        )
+
 

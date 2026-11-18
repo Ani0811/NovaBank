@@ -5,6 +5,14 @@ from novabank.application.dto.account_dto import (
     OpenAccountRequestDTO,
     OpenAccountResultDTO,
 )
+from novabank.application.dto.loan_dto import (
+    AmortizationScheduleEntryDTO,
+    LoanContractDTO,
+    LoanOriginationRequestDTO,
+    LoanQuoteRequestDTO,
+    LoanQuoteResponseDTO,
+    LoanRepaymentResultDTO,
+)
 from novabank.application.dto.transaction_dto import (
     DepositRequestDTO,
     TransactionDTO,
@@ -15,7 +23,13 @@ from novabank.application.dto.transaction_dto import (
 
 __all__ = [
     "AccountDTO",
+    "AmortizationScheduleEntryDTO",
     "DepositRequestDTO",
+    "LoanContractDTO",
+    "LoanOriginationRequestDTO",
+    "LoanQuoteRequestDTO",
+    "LoanQuoteResponseDTO",
+    "LoanRepaymentResultDTO",
     "OpenAccountRequestDTO",
     "OpenAccountResultDTO",
     "TransactionDTO",

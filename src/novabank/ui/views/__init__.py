@@ -7,6 +7,11 @@ from novabank.ui.views.ai_assistant_panel import AIAssistantPanel
 from novabank.ui.views.audit_log_view import AuditLogView
 from novabank.ui.views.dashboard_view import DashboardView
 from novabank.ui.views.deposit_view import DepositView
+from novabank.ui.views.loan_desk_view import (
+    LoanDeskView,
+    LoanDisbursementReceiptDialog,
+    LoanRepaymentDialog,
+)
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.views.settings_view import SettingsView
 from novabank.ui.views.statement_view import StatementView
@@ -22,6 +27,9 @@ __all__ = [
     "AuditLogView",
     "DashboardView",
     "DepositView",
+    "LoanDeskView",
+    "LoanDisbursementReceiptDialog",
+    "LoanRepaymentDialog",
     "OpenAccountView",
     "SettingsView",
     "StatementView",

@@ -108,3 +108,31 @@ class PaymentAlreadySettledError(PaymentGatewayError):
 class PaymentRefundError(PaymentGatewayError):
     """Raised when refunding a payment violates business rules or exceeds captured amount."""
 
+
+class LoanError(DomainError):
+    """Base error for commercial loan origination, repayment, and servicing exceptions."""
+
+
+class LoanNotFoundError(LoanError):
+    """Raised when a specified loan contract identifier does not exist in the ledger."""
+
+    def __init__(self, loan_id: str) -> None:
+        super().__init__(f"Loan contract '{loan_id}' not found.")
+        self.loan_id = loan_id
+
+
+class InvalidLoanTermsError(LoanError):
+    """Raised when loan parameters (principal, APR, term) violate underwriting limits."""
+
+
+class LoanDisbursementError(LoanError):
+    """Raised when loan disbursement fails due to account state or validation violations."""
+
+
+class LoanAlreadyPaidOffError(LoanError):
+    """Raised when attempting an installment payment on an already satisfied loan."""
+
+
+class InsufficientRepaymentAmountError(LoanError):
+    """Raised when an installment repayment is less than minimum required installment."""
+

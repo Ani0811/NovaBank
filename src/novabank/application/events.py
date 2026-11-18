@@ -179,4 +179,44 @@ class PaymentDeclinedEvent:
     actor: str = "gateway"
 
 
+@dataclass(frozen=True)
+class LoanOriginatedEvent:
+    """Emitted upon approval, disbursement, and scheduling of a commercial credit facility."""
+
+    loan_id: str
+    account_number: str
+    principal: Decimal
+    interest_rate_apr: Decimal
+    term_months: int
+    monthly_installment: Decimal
+    timestamp: datetime
+    actor: str = "lending_officer"
+
+
+@dataclass(frozen=True)
+class LoanRepaymentProcessedEvent:
+    """Emitted upon successful settlement of an amortization installment payment."""
+
+    loan_id: str
+    account_number: str
+    amount: Decimal
+    principal_portion: Decimal
+    interest_portion: Decimal
+    remaining_balance: Decimal
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class LoanPaidOffEvent:
+    """Emitted when a loan balance reaches zero, closing out the facility."""
+
+    loan_id: str
+    account_number: str
+    total_principal_paid: Decimal
+    timestamp: datetime
+    actor: str = "system"
+
+
+
 

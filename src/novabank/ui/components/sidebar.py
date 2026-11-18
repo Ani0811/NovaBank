@@ -40,6 +40,7 @@ class Sidebar(QFrame):
                 ("withdrawals", "Withdrawals", "withdrawals"),
                 ("transfers", "Fund Transfers", "transfers"),
                 ("payment_gateway", "Payment Gateway", "credit_card"),
+                ("loans", "Loan Desk", "landmark"),
                 ("statements", "Statements", "statements"),
             ],
         ),

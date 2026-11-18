@@ -47,6 +47,11 @@ class AccountDTO:
     created_at: datetime = None  # type: ignore
     updated_at: datetime = None  # type: ignore
 
+    @property
+    def formatted_balance(self) -> str:
+        """Formatted monetary currency balance display."""
+        return f"${self.balance:,.2f}"
+
     @classmethod
     def from_entity(cls, entity: Account) -> AccountDTO:
         return cls(
