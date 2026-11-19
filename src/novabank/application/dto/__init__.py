@@ -13,6 +13,15 @@ from novabank.application.dto.loan_dto import (
     LoanQuoteResponseDTO,
     LoanRepaymentResultDTO,
 )
+from novabank.application.dto.term_deposit_dto import (
+    CDAccrualMilestoneDTO,
+    CDSimulationRequestDTO,
+    CDSimulationResponseDTO,
+    CertificateOfDepositDTO,
+    EarlyRedemptionPreviewDTO,
+    OpenCDRequestDTO,
+    RedemptionResultDTO,
+)
 from novabank.application.dto.transaction_dto import (
     DepositRequestDTO,
     TransactionDTO,
@@ -24,7 +33,12 @@ from novabank.application.dto.transaction_dto import (
 __all__ = [
     "AccountDTO",
     "AmortizationScheduleEntryDTO",
+    "CDAccrualMilestoneDTO",
+    "CDSimulationRequestDTO",
+    "CDSimulationResponseDTO",
+    "CertificateOfDepositDTO",
     "DepositRequestDTO",
+    "EarlyRedemptionPreviewDTO",
     "LoanContractDTO",
     "LoanOriginationRequestDTO",
     "LoanQuoteRequestDTO",
@@ -32,6 +46,8 @@ __all__ = [
     "LoanRepaymentResultDTO",
     "OpenAccountRequestDTO",
     "OpenAccountResultDTO",
+    "OpenCDRequestDTO",
+    "RedemptionResultDTO",
     "TransactionDTO",
     "TransferRequestDTO",
     "TransferResultDTO",

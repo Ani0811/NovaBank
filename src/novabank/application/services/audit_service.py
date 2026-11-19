@@ -25,6 +25,10 @@ from novabank.application.events import (
     PaymentProcessedEvent,
     PaymentRefundedEvent,
     ProfileUpdatedEvent,
+    TermDepositEarlyRedeemedEvent,
+    TermDepositMaturedEvent,
+    TermDepositOpenedEvent,
+    TermDepositRolledOverEvent,
     TransferCompletedEvent,
     WithdrawalCompletedEvent,
 )
@@ -51,6 +55,10 @@ class AuditService:
     EVENT_LOAN_ORIGINATED = "LOAN_ORIGINATED"
     EVENT_LOAN_REPAYMENT = "LOAN_REPAYMENT"
     EVENT_LOAN_PAID_OFF = "LOAN_PAID_OFF"
+    EVENT_CD_OPENED = "CD_OPENED"
+    EVENT_CD_MATURED = "CD_MATURED"
+    EVENT_CD_EARLY_REDEEMED = "CD_EARLY_REDEEMED"
+    EVENT_CD_ROLLED_OVER = "CD_ROLLED_OVER"
 
     def __init__(
         self, session_factory: Union[sessionmaker[Session], Callable[[], Session]]
@@ -321,6 +329,72 @@ class AuditService:
                 payload={
                     "account_number": event.account_number,
                     "total_principal_paid": str(event.total_principal_paid),
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, TermDepositOpenedEvent):
+            return self.record_event(
+                event_type=self.EVENT_CD_OPENED,
+                entity_type="TERM_DEPOSIT",
+                entity_id=event.cd_id,
+                actor=event.actor,
+                payload={
+                    "certificate_number": event.certificate_number,
+                    "account_number": event.account_number,
+                    "principal": str(event.principal),
+                    "interest_rate_apy": str(event.interest_rate_apy),
+                    "tenor_months": event.tenor_months,
+                    "maturity_date": event.maturity_date,
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, TermDepositMaturedEvent):
+            return self.record_event(
+                event_type=self.EVENT_CD_MATURED,
+                entity_type="TERM_DEPOSIT",
+                entity_id=event.cd_id,
+                actor=event.actor,
+                payload={
+                    "certificate_number": event.certificate_number,
+                    "account_number": event.account_number,
+                    "principal": str(event.principal),
+                    "interest_paid": str(event.interest_paid),
+                    "total_payout": str(event.total_payout),
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, TermDepositEarlyRedeemedEvent):
+            return self.record_event(
+                event_type=self.EVENT_CD_EARLY_REDEEMED,
+                entity_type="TERM_DEPOSIT",
+                entity_id=event.cd_id,
+                actor=event.actor,
+                payload={
+                    "certificate_number": event.certificate_number,
+                    "account_number": event.account_number,
+                    "principal": str(event.principal),
+                    "accrued_interest": str(event.accrued_interest),
+                    "penalty_deducted": str(event.penalty_deducted),
+                    "net_payout": str(event.net_payout),
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, TermDepositRolledOverEvent):
+            return self.record_event(
+                event_type=self.EVENT_CD_ROLLED_OVER,
+                entity_type="TERM_DEPOSIT",
+                entity_id=event.new_cd_id,
+                actor=event.actor,
+                payload={
+                    "old_cd_id": event.old_cd_id,
+                    "new_cd_id": event.new_cd_id,
+                    "account_number": event.account_number,
+                    "principal": str(event.principal),
+                    "new_apy": str(event.new_apy),
                 },
                 timestamp=event.timestamp,
             )

@@ -8,6 +8,7 @@ from novabank.ui.viewmodels.loan_desk_viewmodel import LoanDeskViewModel
 from novabank.ui.viewmodels.open_account_viewmodel import OpenAccountViewModel
 from novabank.ui.viewmodels.payment_gateway_viewmodel import PaymentGatewayViewModel
 from novabank.ui.viewmodels.statement_viewmodel import StatementViewModel
+from novabank.ui.viewmodels.term_deposit_viewmodel import TermDepositViewModel
 from novabank.ui.viewmodels.transaction_viewmodel import TransactionViewModel
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "OpenAccountViewModel",
     "PaymentGatewayViewModel",
     "StatementViewModel",
+    "TermDepositViewModel",
     "TransactionViewModel",
 ]

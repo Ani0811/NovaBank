@@ -218,5 +218,63 @@ class LoanPaidOffEvent:
     actor: str = "system"
 
 
+@dataclass(frozen=True)
+class TermDepositOpenedEvent:
+    """Emitted upon successful funding and issuance of a Certificate of Deposit."""
+
+    cd_id: str
+    certificate_number: str
+    account_number: str
+    principal: Decimal
+    interest_rate_apy: Decimal
+    tenor_months: int
+    maturity_date: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class TermDepositMaturedEvent:
+    """Emitted when a CD reaches maturity and proceeds are disbursed."""
+
+    cd_id: str
+    certificate_number: str
+    account_number: str
+    principal: Decimal
+    interest_paid: Decimal
+    total_payout: Decimal
+    timestamp: datetime
+    actor: str = "system"
+
+
+@dataclass(frozen=True)
+class TermDepositEarlyRedeemedEvent:
+    """Emitted upon premature liquidation of a CD with penalty deduction."""
+
+    cd_id: str
+    certificate_number: str
+    account_number: str
+    principal: Decimal
+    accrued_interest: Decimal
+    penalty_deducted: Decimal
+    net_payout: Decimal
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class TermDepositRolledOverEvent:
+    """Emitted when a matured CD rolls over into a new vault contract."""
+
+    old_cd_id: str
+    new_cd_id: str
+    account_number: str
+    principal: Decimal
+    new_apy: Decimal
+    timestamp: datetime
+    actor: str = "system"
+
+
+
 
 

@@ -136,3 +136,28 @@ class LoanAlreadyPaidOffError(LoanError):
 class InsufficientRepaymentAmountError(LoanError):
     """Raised when an installment repayment is less than minimum required installment."""
 
+
+class TermDepositError(DomainError):
+    """Base error for Certificate of Deposit and Term Deposit vault operations."""
+
+
+class TermDepositNotFoundError(TermDepositError):
+    """Raised when a specified Certificate of Deposit identifier does not exist."""
+
+    def __init__(self, cd_id: str) -> None:
+        super().__init__(f"Certificate of Deposit '{cd_id}' not found.")
+        self.cd_id = cd_id
+
+
+class InvalidTermDepositTermsError(TermDepositError):
+    """Raised when term deposit parameters (principal, tenor, APY) violate vault limits."""
+
+
+class PrematureRedemptionNotAllowedError(TermDepositError):
+    """Raised when a non-callable or locked CD cannot be broken prematurely."""
+
+
+class TermDepositAlreadyClosedError(TermDepositError):
+    """Raised when attempting redemption or mutation on an already matured/closed CD."""
+
+

@@ -36,6 +36,13 @@ from novabank.domain.entities.payment import (
     PaymentStatus,
     PaymentTransaction,
 )
+from novabank.domain.entities.term_deposit import (
+    CDAccrualMilestone,
+    CertificateOfDeposit,
+    TermDepositPayoutFrequency,
+    TermDepositRolloverOption,
+    TermDepositStatus,
+)
 from novabank.domain.entities.transaction import Transaction
 from novabank.domain.value_objects.account_number import AccountNumber
 from novabank.domain.value_objects.money import Money
@@ -487,5 +494,131 @@ class LoanContractModel(Base):
             next_due_date=entity.next_due_date,
             schedule_json=schedule_data,
         )
+
+
+class TermDepositModel(Base):
+    """Relational model for Certificates of Deposit (CD) and Term Deposit Vault contracts."""
+
+    __tablename__ = "term_deposits"
+
+    cd_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    account_number: Mapped[str] = mapped_column(
+        String(12), ForeignKey("accounts.account_number"), nullable=False
+    )
+    principal_amount: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2, asdecimal=True), nullable=False
+    )
+    interest_rate_apy: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2, asdecimal=True), nullable=False
+    )
+    tenor_months: Mapped[int] = mapped_column(Integer, nullable=False)
+    issue_date: Mapped[date] = mapped_column(Date, nullable=False)
+    maturity_date: Mapped[date] = mapped_column(Date, nullable=False)
+    payout_frequency: Mapped[str] = mapped_column(String(20), default="AT_MATURITY", nullable=False)
+    rollover_option: Mapped[str] = mapped_column(String(30), default="PAYOUT_AND_CLOSE", nullable=False)
+    accrued_interest: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2, asdecimal=True), default=Decimal("0.00"), nullable=False
+    )
+    projected_interest_at_maturity: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2, asdecimal=True), default=Decimal("0.00"), nullable=False
+    )
+    early_withdrawal_penalty_months: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    early_withdrawal_penalty: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(15, 2, asdecimal=True), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
+    certificate_number: Mapped[str] = mapped_column(String(64), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    accruals_json: Mapped[Any] = mapped_column(JSON, nullable=False)
+
+    __table_args__ = (
+        Index("idx_cd_account", "account_number"),
+        Index("idx_cd_status", "status"),
+        Index("idx_cd_maturity", "maturity_date"),
+        Index("idx_cd_created", "created_at"),
+    )
+
+    def to_entity(self) -> CertificateOfDeposit:
+        """Convert ORM model to pure Domain CertificateOfDeposit entity."""
+        milestones: list[CDAccrualMilestone] = []
+        if self.accruals_json and isinstance(self.accruals_json, list):
+            for item in self.accruals_json:
+                milestones.append(
+                    CDAccrualMilestone(
+                        milestone_index=int(item["milestone_index"]),
+                        accrual_date=date.fromisoformat(item["accrual_date"])
+                        if isinstance(item["accrual_date"], str)
+                        else item["accrual_date"],
+                        period_interest=Money(Decimal(str(item["period_interest"])), currency=self.currency),
+                        cumulative_interest=Money(Decimal(str(item["cumulative_interest"])), currency=self.currency),
+                        cumulative_balance=Money(Decimal(str(item["cumulative_balance"])), currency=self.currency),
+                    )
+                )
+
+        return CertificateOfDeposit(
+            cd_id=self.cd_id,
+            account_number=AccountNumber(self.account_number),
+            principal_amount=Money(self.principal_amount, currency=self.currency),
+            interest_rate_apy=self.interest_rate_apy,
+            tenor_months=self.tenor_months,
+            issue_date=self.issue_date,
+            maturity_date=self.maturity_date,
+            payout_frequency=TermDepositPayoutFrequency(self.payout_frequency),
+            rollover_option=TermDepositRolloverOption(self.rollover_option),
+            accrued_interest=Money(self.accrued_interest, currency=self.currency),
+            projected_interest_at_maturity=Money(self.projected_interest_at_maturity, currency=self.currency),
+            early_withdrawal_penalty_months=self.early_withdrawal_penalty_months,
+            status=TermDepositStatus(self.status),
+            certificate_number=self.certificate_number,
+            created_at=self.created_at,
+            closed_at=self.closed_at,
+            early_withdrawal_penalty=Money(self.early_withdrawal_penalty, currency=self.currency)
+            if self.early_withdrawal_penalty is not None
+            else None,
+            accruals=milestones,
+        )
+
+    @classmethod
+    def from_entity(cls, entity: CertificateOfDeposit) -> TermDepositModel:
+        """Construct ORM model from pure Domain CertificateOfDeposit entity."""
+        accruals_data = [
+            {
+                "milestone_index": item.milestone_index,
+                "accrual_date": item.accrual_date.isoformat(),
+                "period_interest": str(item.period_interest.amount),
+                "cumulative_interest": str(item.cumulative_interest.amount),
+                "cumulative_balance": str(item.cumulative_balance.amount),
+            }
+            for item in entity.accruals
+        ]
+
+        return cls(
+            cd_id=entity.cd_id,
+            account_number=entity.account_number.value,
+            principal_amount=entity.principal_amount.amount,
+            interest_rate_apy=entity.interest_rate_apy,
+            tenor_months=entity.tenor_months,
+            issue_date=entity.issue_date,
+            maturity_date=entity.maturity_date,
+            payout_frequency=entity.payout_frequency.value,
+            rollover_option=entity.rollover_option.value,
+            accrued_interest=entity.accrued_interest.amount,
+            projected_interest_at_maturity=entity.projected_interest_at_maturity.amount,
+            early_withdrawal_penalty_months=entity.early_withdrawal_penalty_months,
+            early_withdrawal_penalty=entity.early_withdrawal_penalty.amount
+            if entity.early_withdrawal_penalty is not None
+            else None,
+            status=entity.status.value,
+            certificate_number=entity.certificate_number,
+            currency=entity.principal_amount.currency,
+            created_at=entity.created_at,
+            closed_at=entity.closed_at,
+            accruals_json=accruals_data,
+        )
+
 
 

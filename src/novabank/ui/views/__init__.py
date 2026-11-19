@@ -15,6 +15,11 @@ from novabank.ui.views.loan_desk_view import (
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.views.settings_view import SettingsView
 from novabank.ui.views.statement_view import StatementView
+from novabank.ui.views.term_deposit_view import (
+    CDEarlyRedemptionDialog,
+    CDIssuanceReceiptDialog,
+    TermDepositView,
+)
 from novabank.ui.views.transactions_hub_view import TransactionsHubView
 from novabank.ui.views.transfer_view import TransferReceiptDialog, TransferView
 from novabank.ui.views.withdrawal_view import WithdrawalView
@@ -25,6 +30,8 @@ __all__ = [
     "AccountListView",
     "AIAssistantPanel",
     "AuditLogView",
+    "CDEarlyRedemptionDialog",
+    "CDIssuanceReceiptDialog",
     "DashboardView",
     "DepositView",
     "LoanDeskView",
@@ -33,6 +40,7 @@ __all__ = [
     "OpenAccountView",
     "SettingsView",
     "StatementView",
+    "TermDepositView",
     "TransactionsHubView",
     "TransferReceiptDialog",
     "TransferView",

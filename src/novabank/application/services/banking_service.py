@@ -31,6 +31,15 @@ from novabank.application.dto.payment_dto import (
     PaymentRequestDTO,
     PaymentTransactionDTO,
 )
+from novabank.application.dto.term_deposit_dto import (
+    CDAccrualMilestoneDTO,
+    CDSimulationRequestDTO,
+    CDSimulationResponseDTO,
+    CertificateOfDepositDTO,
+    EarlyRedemptionPreviewDTO,
+    OpenCDRequestDTO,
+    RedemptionResultDTO,
+)
 from novabank.application.dto.transaction_dto import TransactionDTO, TransferResultDTO
 from novabank.application.events import (
     AccountClosedEvent,
@@ -48,6 +57,10 @@ from novabank.application.events import (
     PaymentProcessedEvent,
     PaymentRefundedEvent,
     ProfileUpdatedEvent,
+    TermDepositEarlyRedeemedEvent,
+    TermDepositMaturedEvent,
+    TermDepositOpenedEvent,
+    TermDepositRolledOverEvent,
     TransferCompletedEvent,
     WithdrawalCompletedEvent,
 )
@@ -60,6 +73,13 @@ from novabank.domain.entities.payment import (
     PaymentStatus,
     PaymentTransaction,
 )
+from novabank.domain.entities.term_deposit import (
+    CDAccrualMilestone,
+    CertificateOfDeposit,
+    TermDepositPayoutFrequency,
+    TermDepositRolloverOption,
+    TermDepositStatus,
+)
 from novabank.domain.exceptions import (
     AccountClosedError,
     AccountFrozenError,
@@ -69,16 +89,22 @@ from novabank.domain.exceptions import (
     InsufficientFundsError,
     InvalidAmountError,
     InvalidLoanTermsError,
+    InvalidTermDepositTermsError,
     LoanAlreadyPaidOffError,
     LoanDisbursementError,
     LoanError,
     LoanNotFoundError,
     PaymentDeclinedError,
     PaymentRefundError,
+    PrematureRedemptionNotAllowedError,
     SelfTransferError,
+    TermDepositAlreadyClosedError,
+    TermDepositError,
+    TermDepositNotFoundError,
 )
 from novabank.domain.services.amortization_calculator import AmortizationCalculator
 from novabank.domain.services.interest_calculator import InterestCalculator
+from novabank.domain.services.term_deposit_calculator import TermDepositCalculator
 from novabank.domain.value_objects.account_number import AccountNumber
 from novabank.domain.value_objects.money import Money
 from novabank.domain.value_objects.transaction_type import TransactionType
@@ -87,6 +113,9 @@ from novabank.infrastructure.repositories.sql_account_repository import SQLAccou
 from novabank.infrastructure.repositories.sql_beneficiary_repository import SQLBeneficiaryRepository
 from novabank.infrastructure.repositories.sql_loan_repository import SQLLoanRepository
 from novabank.infrastructure.repositories.sql_payment_repository import SQLPaymentRepository
+from novabank.infrastructure.repositories.sql_term_deposit_repository import (
+    SQLTermDepositRepository,
+)
 from novabank.infrastructure.repositories.sql_transaction_repository import SQLTransactionRepository
 
 logger = logging.getLogger(__name__)
@@ -1734,4 +1763,400 @@ class BankingService:
 
         csv_content = string_buffer.getvalue()
         return ExportService._deliver_output(csv_content, destination, encoding)
+
+    # -------------------------------------------------------------------------
+    # Term Deposits & Certificate of Deposit (CD) Vault Engine
+    # -------------------------------------------------------------------------
+
+    def simulate_term_deposit(
+        self,
+        principal: Decimal,
+        tenor_months: int,
+        apy_percentage: Decimal,
+        payout_frequency: str = "AT_MATURITY",
+    ) -> CDSimulationResponseDTO:
+        """Simulate compound interest returns and maturity payout without persistence."""
+        principal_money = Money(principal)
+        if not principal_money.is_positive():
+            raise InvalidTermDepositTermsError("Deposit principal must be strictly positive.")
+        if principal < Decimal("500.00"):
+            raise InvalidTermDepositTermsError("Minimum principal for CD vault issuance is $500.00.")
+        if tenor_months <= 0 or tenor_months > 120:
+            raise InvalidTermDepositTermsError(f"Tenor must be between 1 and 120 months, got {tenor_months}.")
+        if apy_percentage <= Decimal("0.00") or apy_percentage > Decimal("30.00"):
+            raise InvalidTermDepositTermsError(f"APY must be between 0.01% and 30.00%, got {apy_percentage}%.")
+
+        projected_int = TermDepositCalculator.calculate_projected_interest(
+            principal=principal_money,
+            apy_percentage=apy_percentage,
+            tenor_months=tenor_months,
+        )
+        total_payout = principal + projected_int.amount
+        today = date.today()
+        maturity_date = TermDepositCalculator.add_months(today, tenor_months)
+
+        temp_cd = CertificateOfDeposit(
+            cd_id="SIM",
+            account_number=AccountNumber("100000000001"),
+            principal_amount=principal_money,
+            interest_rate_apy=apy_percentage,
+            tenor_months=tenor_months,
+            issue_date=today,
+            maturity_date=maturity_date,
+            payout_frequency=TermDepositPayoutFrequency(payout_frequency),
+            rollover_option=TermDepositRolloverOption.PAYOUT_AND_CLOSE,
+        )
+        accrual_dtos = [CDAccrualMilestoneDTO.from_entity(m) for m in temp_cd.accruals]
+
+        return CDSimulationResponseDTO(
+            principal=principal,
+            apy_percentage=apy_percentage,
+            tenor_months=tenor_months,
+            projected_interest=projected_int.amount,
+            total_payout_at_maturity=total_payout,
+            issue_date=today.isoformat(),
+            maturity_date=maturity_date.isoformat(),
+            accrual_milestones=accrual_dtos,
+        )
+
+    def open_term_deposit(
+        self,
+        request: OpenCDRequestDTO,
+        actor: str = "teller",
+    ) -> CertificateOfDepositDTO:
+        """Atomically lock funding account balances and issue an institutional Certificate of Deposit."""
+        acc_str = str(request.account_number).strip().replace("-", "").replace(" ", "")
+        principal_money = Money(request.principal)
+
+        if not principal_money.is_positive():
+            raise InvalidTermDepositTermsError("Deposit principal must be strictly positive.")
+        if request.principal < Decimal("500.00"):
+            raise InvalidTermDepositTermsError("Minimum principal for CD vault issuance is $500.00.")
+        if request.tenor_months <= 0 or request.tenor_months > 120:
+            raise InvalidTermDepositTermsError(f"Tenor must be between 1 and 120 months, got {request.tenor_months}.")
+        if request.apy_percentage <= Decimal("0.00") or request.apy_percentage > Decimal("30.00"):
+            raise InvalidTermDepositTermsError(f"APY must be between 0.01% and 30.00%, got {request.apy_percentage}%.")
+
+        cd_id = f"CD-{uuid.uuid4().hex[:8].upper()}"
+        issue_d = date.today()
+        mat_d = TermDepositCalculator.add_months(issue_d, request.tenor_months)
+
+        # Standard regulatory penalty: 3 months of simple interest for tenors <= 12m, 6 months for tenors > 12m
+        penalty_months = 3 if request.tenor_months <= 12 else 6
+
+        cd = CertificateOfDeposit(
+            cd_id=cd_id,
+            account_number=AccountNumber(acc_str),
+            principal_amount=principal_money,
+            interest_rate_apy=request.apy_percentage,
+            tenor_months=request.tenor_months,
+            issue_date=issue_d,
+            maturity_date=mat_d,
+            payout_frequency=TermDepositPayoutFrequency(request.payout_frequency),
+            rollover_option=TermDepositRolloverOption(request.rollover_option),
+            early_withdrawal_penalty_months=penalty_months,
+            status=TermDepositStatus.ACTIVE,
+        )
+
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    account_repo = SQLAccountRepository(session)
+                    tx_repo = SQLTransactionRepository(session)
+                    cd_repo = SQLTermDepositRepository(session)
+
+                    account = account_repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+                    if not account.is_active:
+                        raise AccountClosedError(acc_str)
+                    if account.is_frozen:
+                        raise AccountFrozenError(acc_str)
+
+                    if account.balance < principal_money:
+                        raise InsufficientFundsError(
+                            current_balance=account.balance.formatted(),
+                            requested_amount=principal_money.formatted(),
+                        )
+
+                    # Debit funding account
+                    tx_entity = account.debit(
+                        amount=principal_money,
+                        transaction_type=TransactionType.WITHDRAWAL,
+                        description=f"CD Vault Funding: {cd.cd_id} ({request.tenor_months}M @ {request.apy_percentage}% APY)",
+                        ref=f"TXN-CDLOCK-{uuid.uuid4().hex[:8].upper()}",
+                        actor=actor,
+                    )
+
+                    account_repo.save(account)
+                    tx_repo.append(tx_entity)
+                    cd_repo.save(cd)
+
+                    now = datetime.now(timezone.utc)
+                    withdrawal_event = WithdrawalCompletedEvent(
+                        account_number=account.account_number.value,
+                        amount=principal_money.amount,
+                        balance_after=account.balance.amount,
+                        currency=account.balance.currency,
+                        transaction_ref=tx_entity.transaction_ref,
+                        timestamp=tx_entity.created_at,
+                        actor=actor,
+                        description=tx_entity.description,
+                    )
+
+                    cd_opened_event = TermDepositOpenedEvent(
+                        cd_id=cd.cd_id,
+                        certificate_number=cd.certificate_number,
+                        account_number=cd.account_number.value,
+                        principal=cd.principal_amount.amount,
+                        interest_rate_apy=cd.interest_rate_apy,
+                        tenor_months=cd.tenor_months,
+                        maturity_date=cd.maturity_date.isoformat(),
+                        timestamp=now,
+                        actor=actor,
+                    )
+
+        self._emit(withdrawal_event)
+        self._emit(cd_opened_event)
+        return CertificateOfDepositDTO.from_entity(cd)
+
+    def preview_early_redemption(
+        self,
+        cd_id: str,
+        as_of_date: Optional[date] = None,
+    ) -> EarlyRedemptionPreviewDTO:
+        """Preview early liquidation penalty and net payout without modifying state."""
+        with self._session_factory() as session:
+            cd_repo = SQLTermDepositRepository(session)
+            cd = cd_repo.get_by_id(cd_id)
+            if cd is None:
+                raise TermDepositNotFoundError(cd_id)
+
+        target_date = as_of_date or date.today()
+        principal, accrued, penalty, net_payout = cd.calculate_early_redemption_preview(target_date)
+
+        return EarlyRedemptionPreviewDTO(
+            cd_id=cd.cd_id,
+            certificate_number=cd.certificate_number,
+            account_number=cd.account_number.value,
+            principal=principal.amount,
+            accrued_interest=accrued.amount,
+            penalty=penalty.amount,
+            net_payout=net_payout.amount,
+            days_held=max(0, (target_date - cd.issue_date).days),
+            penalty_months=cd.early_withdrawal_penalty_months,
+        )
+
+    def redeem_term_deposit(
+        self,
+        cd_id: str,
+        is_premature: bool = False,
+        as_of_date: Optional[date] = None,
+        destination_account: Optional[str] = None,
+        actor: str = "teller",
+    ) -> RedemptionResultDTO:
+        """Redeem a Certificate of Deposit at maturity or liquidating prematurely with penalties."""
+        with self._session_factory() as session:
+            cd_repo = SQLTermDepositRepository(session)
+            cd = cd_repo.get_by_id(cd_id)
+            if cd is None:
+                raise TermDepositNotFoundError(cd_id)
+
+        if cd.status != TermDepositStatus.ACTIVE:
+            raise TermDepositAlreadyClosedError(f"CD vault contract '{cd_id}' is already {cd.status.value}.")
+
+        target_date = as_of_date or date.today()
+        dest_acc_str = (
+            destination_account.strip().replace("-", "").replace(" ", "")
+            if destination_account
+            else cd.account_number.value
+        )
+
+        with self._lock_manager.get_lock(dest_acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    account_repo = SQLAccountRepository(session)
+                    tx_repo = SQLTransactionRepository(session)
+                    cd_repo = SQLTermDepositRepository(session)
+
+                    account = account_repo.get_by_number_for_update(dest_acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(dest_acc_str)
+                    if not account.is_active:
+                        raise AccountClosedError(dest_acc_str)
+                    if account.is_frozen:
+                        raise AccountFrozenError(dest_acc_str)
+
+                    # Reload locked CD
+                    locked_cd = cd_repo.get_by_id(cd_id)
+                    if locked_cd is None:
+                        raise TermDepositNotFoundError(cd_id)
+
+                    now = datetime.now(timezone.utc)
+
+                    if is_premature:
+                        principal, net_interest, penalty = locked_cd.close_prematurely(target_date, actor=actor)
+                        total_payout_amount = principal.amount + net_interest.amount
+                        if total_payout_amount < Decimal("0.00"):
+                            total_payout_amount = Decimal("0.00")
+                        payout_money = Money(total_payout_amount)
+
+                        desc = (
+                            f"CD Early Liquidation: {cd_id} "
+                            f"(Net Payout after ${penalty.amount:,.2f} penalty)"
+                        )
+                        redemption_event = TermDepositEarlyRedeemedEvent(
+                            cd_id=locked_cd.cd_id,
+                            certificate_number=locked_cd.certificate_number,
+                            account_number=dest_acc_str,
+                            principal=principal.amount,
+                            accrued_interest=locked_cd.accrued_interest.amount,
+                            penalty_deducted=penalty.amount,
+                            net_payout=payout_money.amount,
+                            timestamp=now,
+                            actor=actor,
+                        )
+                        interest_portion = net_interest.amount
+                        penalty_portion = penalty.amount
+                    else:
+                        payout_money = locked_cd.mature(target_date, actor=actor)
+                        desc = (
+                            f"CD Maturity Settlement: {cd_id} "
+                            f"(Principal + ${locked_cd.projected_interest_at_maturity.amount:,.2f} Interest)"
+                        )
+                        redemption_event = TermDepositMaturedEvent(
+                            cd_id=locked_cd.cd_id,
+                            certificate_number=locked_cd.certificate_number,
+                            account_number=dest_acc_str,
+                            principal=locked_cd.principal_amount.amount,
+                            interest_paid=locked_cd.projected_interest_at_maturity.amount,
+                            total_payout=payout_money.amount,
+                            timestamp=now,
+                            actor=actor,
+                        )
+                        interest_portion = locked_cd.projected_interest_at_maturity.amount
+                        penalty_portion = Decimal("0.00")
+
+                    # Credit payout to destination checking/savings account
+                    tx_entity = account.credit(
+                        amount=payout_money,
+                        transaction_type=TransactionType.DEPOSIT,
+                        description=desc,
+                        ref=f"TXN-CDPAY-{uuid.uuid4().hex[:8].upper()}",
+                        actor=actor,
+                    )
+
+                    account_repo.save(account)
+                    tx_repo.append(tx_entity)
+                    cd_repo.save(locked_cd)
+
+                    deposit_event = DepositCompletedEvent(
+                        account_number=account.account_number.value,
+                        amount=payout_money.amount,
+                        balance_after=account.balance.amount,
+                        currency=account.balance.currency,
+                        transaction_ref=tx_entity.transaction_ref,
+                        timestamp=tx_entity.created_at,
+                        actor=actor,
+                        description=tx_entity.description,
+                    )
+
+                    result_dto = RedemptionResultDTO(
+                        cd_id=locked_cd.cd_id,
+                        certificate_number=locked_cd.certificate_number,
+                        account_number=dest_acc_str,
+                        principal=locked_cd.principal_amount.amount,
+                        interest_paid=interest_portion,
+                        penalty_deducted=penalty_portion,
+                        net_payout=payout_money.amount,
+                        status=locked_cd.status.value,
+                        timestamp=now,
+                        new_account_balance=account.balance.amount,
+                    )
+
+        self._emit(deposit_event)
+        self._emit(redemption_event)
+        return result_dto
+
+    def get_term_deposit(self, cd_id: str) -> Optional[CertificateOfDepositDTO]:
+        """Fetch Certificate of Deposit by unique facility identifier."""
+        with self._session_factory() as session:
+            cd_repo = SQLTermDepositRepository(session)
+            cd = cd_repo.get_by_id(cd_id)
+            return CertificateOfDepositDTO.from_entity(cd) if cd is not None else None
+
+    def list_term_deposits(
+        self,
+        account_number: Optional[str] = None,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[CertificateOfDepositDTO], int]:
+        """List paginated Certificate of Deposit records with optional account and status filters."""
+        limit = max(1, page_size)
+        offset = max(0, (page - 1) * limit)
+        with self._session_factory() as session:
+            cd_repo = SQLTermDepositRepository(session)
+            cds, total = cd_repo.list_term_deposits(
+                account_number=account_number,
+                status=status,
+                limit=limit,
+                offset=offset,
+            )
+            return [CertificateOfDepositDTO.from_entity(c) for c in cds], total
+
+    def export_term_deposits_csv(
+        self,
+        cds: Sequence[CertificateOfDepositDTO],
+        destination: Optional[Union[str, Path, TextIO]] = None,
+        *,
+        encoding: str = "utf-8",
+        sanitize_formulas: bool = True,
+    ) -> str:
+        """Export Certificate of Deposit records directly to RFC-4180 CSV."""
+        import csv
+        import io
+        from novabank.application.services.export_service import ExportService
+
+        string_buffer = io.StringIO()
+        writer = csv.writer(string_buffer, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
+
+        headers = [
+            "Certificate ID",
+            "Certificate Number",
+            "Account Number",
+            "Principal",
+            "APY %",
+            "Tenor (Months)",
+            "Issue Date",
+            "Maturity Date",
+            "Payout Frequency",
+            "Accrued Interest",
+            "Projected Interest",
+            "Total Matured Payout",
+            "Status",
+        ]
+        writer.writerow(headers)
+
+        for c in cds:
+            row = [
+                ExportService.sanitize_field(c.cd_id, sanitize_formulas),
+                ExportService.sanitize_field(c.certificate_number, sanitize_formulas),
+                c.account_number,
+                f"{c.principal_amount:.2f}",
+                f"{c.interest_rate_apy}%",
+                c.tenor_months,
+                c.issue_date,
+                c.maturity_date,
+                c.payout_frequency,
+                f"{c.accrued_interest:.2f}",
+                f"{c.projected_interest_at_maturity:.2f}",
+                f"{c.total_payout_at_maturity:.2f}",
+                c.status,
+            ]
+            writer.writerow(row)
+
+        csv_content = string_buffer.getvalue()
+        return ExportService._deliver_output(csv_content, destination, encoding)
+
 

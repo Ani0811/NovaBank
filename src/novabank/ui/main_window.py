@@ -31,6 +31,7 @@ from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.views.payment_gateway_view import PaymentGatewayView
 from novabank.ui.views.settings_view import SettingsView
 from novabank.ui.views.statement_view import StatementView
+from novabank.ui.views.term_deposit_view import TermDepositView
 from novabank.ui.views.transactions_hub_view import TransactionsHubView
 from novabank.ui.views.transfer_view import TransferView
 from novabank.ui.views.withdrawal_view import WithdrawalView
@@ -74,6 +75,10 @@ class MainWindow(QMainWindow):
         "loans": (
             "Commercial Loan Desk",
             "Originate facilities, simulate amortization schedules, and service credit portfolios",
+        ),
+        "term_deposits": (
+            "Certificate of Deposit (CD) Vault",
+            "Lock institutional capital, simulate compound yields, and service time deposits",
         ),
         "open_account": (
             "Open New Account",
@@ -120,6 +125,7 @@ class MainWindow(QMainWindow):
         self.transfer_view: Optional[TransferView] = None
         self.payment_gateway_view: Optional[PaymentGatewayView] = None
         self.loan_desk_view: Optional[LoanDeskView] = None
+        self.term_deposit_view: Optional[TermDepositView] = None
         self.statement_view: Optional[StatementView] = None
         self.audit_log_view: Optional[AuditLogView] = None
         self.ai_assistant_panel: Optional[AIAssistantPanel] = None
@@ -205,6 +211,7 @@ class MainWindow(QMainWindow):
             "transactions",
             "payment_gateway",
             "loans",
+            "term_deposits",
             "open_account",
             "statements",
             "audit_logs",
@@ -268,6 +275,13 @@ class MainWindow(QMainWindow):
                     parent=self,
                 )
                 self.loan_desk_view = page
+            elif view_key == "term_deposits":
+                page = TermDepositView(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.term_deposit_view = page
             elif view_key == "statements":
                 page = StatementView(
                     banking_service=self.banking_service,
@@ -405,3 +419,5 @@ class MainWindow(QMainWindow):
             self.payment_gateway_view.refresh_ledger()
         elif route_key == "loans" and self.loan_desk_view:
             self.loan_desk_view.refresh_portfolio()
+        elif route_key == "term_deposits" and self.term_deposit_view:
+            self.term_deposit_view.refresh_portfolio()
