@@ -26,6 +26,7 @@ from novabank.ui.views.ai_assistant_panel import AIAssistantPanel
 from novabank.ui.views.audit_log_view import AuditLogView
 from novabank.ui.views.dashboard_view import DashboardView
 from novabank.ui.views.deposit_view import DepositView
+from novabank.ui.views.fx_treasury_view import FXTreasuryView
 from novabank.ui.views.loan_desk_view import LoanDeskView
 from novabank.ui.views.open_account_view import OpenAccountView
 from novabank.ui.views.payment_gateway_view import PaymentGatewayView
@@ -80,6 +81,10 @@ class MainWindow(QMainWindow):
             "Certificate of Deposit (CD) Vault",
             "Lock institutional capital, simulate compound yields, and service time deposits",
         ),
+        "fx_treasury": (
+            "Multi-Currency Treasury & FX Desk",
+            "Institutional spot exchange, sovereign currency reserves, and Continuous Linked Settlement (CLS)",
+        ),
         "open_account": (
             "Open New Account",
             "Register customer profile with instant identity validation",
@@ -126,6 +131,7 @@ class MainWindow(QMainWindow):
         self.payment_gateway_view: Optional[PaymentGatewayView] = None
         self.loan_desk_view: Optional[LoanDeskView] = None
         self.term_deposit_view: Optional[TermDepositView] = None
+        self.fx_treasury_view: Optional[FXTreasuryView] = None
         self.statement_view: Optional[StatementView] = None
         self.audit_log_view: Optional[AuditLogView] = None
         self.ai_assistant_panel: Optional[AIAssistantPanel] = None
@@ -212,6 +218,7 @@ class MainWindow(QMainWindow):
             "payment_gateway",
             "loans",
             "term_deposits",
+            "fx_treasury",
             "open_account",
             "statements",
             "audit_logs",
@@ -282,6 +289,13 @@ class MainWindow(QMainWindow):
                     parent=self,
                 )
                 self.term_deposit_view = page
+            elif view_key == "fx_treasury":
+                page = FXTreasuryView(
+                    banking_service=self.banking_service,
+                    task_runner=self.task_runner,
+                    parent=self,
+                )
+                self.fx_treasury_view = page
             elif view_key == "statements":
                 page = StatementView(
                     banking_service=self.banking_service,
@@ -421,3 +435,5 @@ class MainWindow(QMainWindow):
             self.loan_desk_view.refresh_portfolio()
         elif route_key == "term_deposits" and self.term_deposit_view:
             self.term_deposit_view.refresh_portfolio()
+        elif route_key == "fx_treasury" and self.fx_treasury_view:
+            self.fx_treasury_view.refresh_data()

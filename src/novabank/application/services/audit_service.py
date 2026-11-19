@@ -17,6 +17,7 @@ from novabank.application.events import (
     BeneficiaryAddedEvent,
     BeneficiaryRemovedEvent,
     DepositCompletedEvent,
+    FXTradeExecutedEvent,
     InterestAccruedEvent,
     LoanOriginatedEvent,
     LoanPaidOffEvent,
@@ -30,6 +31,7 @@ from novabank.application.events import (
     TermDepositOpenedEvent,
     TermDepositRolledOverEvent,
     TransferCompletedEvent,
+    TreasuryPositionUpdatedEvent,
     WithdrawalCompletedEvent,
 )
 from novabank.infrastructure.repositories.sql_audit_repository import SQLAuditRepository
@@ -59,6 +61,8 @@ class AuditService:
     EVENT_CD_MATURED = "CD_MATURED"
     EVENT_CD_EARLY_REDEEMED = "CD_EARLY_REDEEMED"
     EVENT_CD_ROLLED_OVER = "CD_ROLLED_OVER"
+    EVENT_FX_TRADE_EXECUTED = "FX_TRADE_EXECUTED"
+    EVENT_TREASURY_POSITION_UPDATED = "TREASURY_POSITION_UPDATED"
 
     def __init__(
         self, session_factory: Union[sessionmaker[Session], Callable[[], Session]]
@@ -395,6 +399,40 @@ class AuditService:
                     "account_number": event.account_number,
                     "principal": str(event.principal),
                     "new_apy": str(event.new_apy),
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, FXTradeExecutedEvent):
+            return self.record_event(
+                event_type=self.EVENT_FX_TRADE_EXECUTED,
+                entity_type="FX_TRADE",
+                entity_id=event.trade_id,
+                actor=event.actor,
+                payload={
+                    "account_number": event.account_number,
+                    "source_currency": event.source_currency,
+                    "source_amount": str(event.source_amount),
+                    "target_currency": event.target_currency,
+                    "target_amount": str(event.target_amount),
+                    "effective_rate": str(event.effective_rate),
+                    "spread_revenue_usd": str(event.spread_revenue_usd),
+                    "fee_amount": str(event.fee_amount),
+                    "settlement_reference": event.settlement_reference,
+                },
+                timestamp=event.timestamp,
+            )
+
+        if isinstance(event, TreasuryPositionUpdatedEvent):
+            return self.record_event(
+                event_type=self.EVENT_TREASURY_POSITION_UPDATED,
+                entity_type="TREASURY_POSITION",
+                entity_id=event.currency,
+                actor=event.actor,
+                payload={
+                    "currency": event.currency,
+                    "delta_amount": str(event.delta_amount),
+                    "new_balance": str(event.new_balance),
                 },
                 timestamp=event.timestamp,
             )

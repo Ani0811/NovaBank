@@ -161,3 +161,43 @@ class TermDepositAlreadyClosedError(TermDepositError):
     """Raised when attempting redemption or mutation on an already matured/closed CD."""
 
 
+class FXError(DomainError):
+    """Base exception for Foreign Exchange and Treasury Desk operations."""
+
+
+class UnsupportedCurrencyError(FXError):
+    """Raised when an unsupported currency code is supplied."""
+
+    def __init__(self, currency: str) -> None:
+        super().__init__(f"Currency '{currency}' is not supported by NovaBank Treasury.")
+        self.currency = currency
+
+
+class InvalidFXAmountError(FXError):
+    """Raised when FX conversion amount is below minimum threshold or non-positive."""
+
+
+class StaleExchangeRateError(FXError):
+    """Raised when an exchange rate exceeds allowable quotation freshness window."""
+
+
+class InsufficientTreasuryReserveError(FXError):
+    """Raised when the bank treasury vault lacks sufficient liquidity to settle currency conversion."""
+
+    def __init__(self, currency: str, requested: str, available: str) -> None:
+        super().__init__(
+            f"Insufficient treasury liquidity in {currency}: requested {requested}, available in vault {available}."
+        )
+        self.currency = currency
+        self.requested = requested
+        self.available = available
+
+
+class FXTradeNotFoundError(FXError):
+    """Raised when the requested FX trade identifier does not exist."""
+
+    def __init__(self, trade_id: str) -> None:
+        super().__init__(f"FX Trade '{trade_id}' not found.")
+        self.trade_id = trade_id
+
+

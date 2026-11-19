@@ -5,6 +5,14 @@ from novabank.application.dto.account_dto import (
     OpenAccountRequestDTO,
     OpenAccountResultDTO,
 )
+from novabank.application.dto.fx_dto import (
+    ExecuteFXTradeRequestDTO,
+    FXQuoteRequestDTO,
+    FXQuoteResponseDTO,
+    FXRateTableEntryDTO,
+    FXTradeDTO,
+    TreasuryPositionDTO,
+)
 from novabank.application.dto.loan_dto import (
     AmortizationScheduleEntryDTO,
     LoanContractDTO,
@@ -39,6 +47,11 @@ __all__ = [
     "CertificateOfDepositDTO",
     "DepositRequestDTO",
     "EarlyRedemptionPreviewDTO",
+    "ExecuteFXTradeRequestDTO",
+    "FXQuoteRequestDTO",
+    "FXQuoteResponseDTO",
+    "FXRateTableEntryDTO",
+    "FXTradeDTO",
     "LoanContractDTO",
     "LoanOriginationRequestDTO",
     "LoanQuoteRequestDTO",
@@ -51,5 +64,6 @@ __all__ = [
     "TransactionDTO",
     "TransferRequestDTO",
     "TransferResultDTO",
+    "TreasuryPositionDTO",
     "WithdrawalRequestDTO",
 ]

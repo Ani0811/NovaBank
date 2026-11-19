@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import logging
 import re
 import threading
 import uuid
 from datetime import date, datetime, time, timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, TextIO, Union
 
@@ -18,6 +20,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from novabank.application.dto.account_dto import AccountDTO, OpenAccountResultDTO
 from novabank.application.dto.beneficiary_dto import BeneficiaryDTO
+from novabank.application.dto.fx_dto import (
+    ExecuteFXTradeRequestDTO,
+    FXQuoteRequestDTO,
+    FXQuoteResponseDTO,
+    FXRateTableEntryDTO,
+    FXTradeDTO,
+    TreasuryPositionDTO,
+)
 from novabank.application.dto.loan_dto import (
     AmortizationScheduleEntryDTO,
     LoanContractDTO,
@@ -49,6 +59,7 @@ from novabank.application.events import (
     BeneficiaryAddedEvent,
     BeneficiaryRemovedEvent,
     DepositCompletedEvent,
+    FXTradeExecutedEvent,
     InterestAccruedEvent,
     LoanOriginatedEvent,
     LoanPaidOffEvent,
@@ -62,10 +73,17 @@ from novabank.application.events import (
     TermDepositOpenedEvent,
     TermDepositRolledOverEvent,
     TransferCompletedEvent,
+    TreasuryPositionUpdatedEvent,
     WithdrawalCompletedEvent,
 )
 from novabank.domain.entities.account import Account
 from novabank.domain.entities.beneficiary import Beneficiary
+from novabank.domain.entities.fx_trade import (
+    ExchangeRate,
+    FXTrade,
+    FXTradeStatus,
+    TreasuryPosition,
+)
 from novabank.domain.entities.loan import LoanContract, LoanStatus, LoanType
 from novabank.domain.entities.payment import (
     PaymentChannel,
@@ -80,14 +98,19 @@ from novabank.domain.entities.term_deposit import (
     TermDepositRolloverOption,
     TermDepositStatus,
 )
+from novabank.domain.entities.transaction import Transaction
 from novabank.domain.exceptions import (
     AccountClosedError,
     AccountFrozenError,
     AccountNotFoundError,
     CurrencyMismatchError,
     DuplicateIdempotencyKeyError,
+    FXError,
+    FXTradeNotFoundError,
     InsufficientFundsError,
+    InsufficientTreasuryReserveError,
     InvalidAmountError,
+    InvalidFXAmountError,
     InvalidLoanTermsError,
     InvalidTermDepositTermsError,
     LoanAlreadyPaidOffError,
@@ -101,8 +124,10 @@ from novabank.domain.exceptions import (
     TermDepositAlreadyClosedError,
     TermDepositError,
     TermDepositNotFoundError,
+    UnsupportedCurrencyError,
 )
 from novabank.domain.services.amortization_calculator import AmortizationCalculator
+from novabank.domain.services.fx_calculator import FXCalculator, SUPPORTED_CURRENCIES
 from novabank.domain.services.interest_calculator import InterestCalculator
 from novabank.domain.services.term_deposit_calculator import TermDepositCalculator
 from novabank.domain.value_objects.account_number import AccountNumber
@@ -111,6 +136,7 @@ from novabank.domain.value_objects.transaction_type import TransactionType
 from novabank.infrastructure.gateways.payment_rails_simulator import PaymentRailsSimulator
 from novabank.infrastructure.repositories.sql_account_repository import SQLAccountRepository
 from novabank.infrastructure.repositories.sql_beneficiary_repository import SQLBeneficiaryRepository
+from novabank.infrastructure.repositories.sql_fx_repository import SQLFXRepository
 from novabank.infrastructure.repositories.sql_loan_repository import SQLLoanRepository
 from novabank.infrastructure.repositories.sql_payment_repository import SQLPaymentRepository
 from novabank.infrastructure.repositories.sql_term_deposit_repository import (
@@ -2158,5 +2184,378 @@ class BankingService:
 
         csv_content = string_buffer.getvalue()
         return ExportService._deliver_output(csv_content, destination, encoding)
+
+    # -------------------------------------------------------------------------
+    # Foreign Exchange (FX) & Treasury Desk Operations
+    # -------------------------------------------------------------------------
+
+    def quote_fx_exchange(
+        self,
+        source_currency: Union[str, FXQuoteRequestDTO],
+        target_currency: Optional[str] = None,
+        source_amount: Optional[Decimal] = None,
+        spread_bps: int = 20,
+    ) -> FXQuoteResponseDTO:
+        """Calculate guaranteed spot conversion quote with fee and spread breakdown."""
+        if isinstance(source_currency, FXQuoteRequestDTO):
+            src = source_currency.source_currency.strip().upper()
+            tgt = source_currency.target_currency.strip().upper()
+            amount = source_currency.source_amount
+        else:
+            src = str(source_currency).strip().upper()
+            tgt = str(target_currency).strip().upper() if target_currency else ""
+            amount = source_amount if source_amount is not None else Decimal("0.00")
+
+        if src not in SUPPORTED_CURRENCIES:
+            raise UnsupportedCurrencyError(src)
+        if tgt not in SUPPORTED_CURRENCIES:
+            raise UnsupportedCurrencyError(tgt)
+        if src == tgt:
+            raise InvalidFXAmountError("Source and target currencies must differ for FX exchange.")
+        if amount <= Decimal("0.00"):
+            raise InvalidFXAmountError("Exchange amount must be strictly positive.")
+
+        with self._session_factory() as session:
+            fx_repo = SQLFXRepository(session)
+            rates_dict = {pair: r.spot_rate for pair, r in fx_repo.get_rates().items()}
+
+        (
+            spot_rate,
+            effective_rate,
+            target_amount,
+            fee,
+            spread_revenue_usd,
+        ) = FXCalculator.compute_conversion(
+            source_currency=src,
+            target_currency=tgt,
+            source_amount=amount,
+            spread_bps=spread_bps,
+            rates_map=rates_dict,
+        )
+
+        return FXQuoteResponseDTO(
+            source_currency=src,
+            target_currency=tgt,
+            source_amount=amount,
+            target_amount=target_amount,
+            spot_rate=spot_rate,
+            effective_rate=effective_rate,
+            spread_bps=spread_bps,
+            fee_amount=fee,
+            spread_revenue_usd=spread_revenue_usd,
+            guaranteed_seconds=60,
+        )
+
+    def execute_fx_conversion(
+        self,
+        request: ExecuteFXTradeRequestDTO,
+    ) -> FXTradeDTO:
+        """Execute atomic spot Foreign Exchange conversion, debit customer balance, and update treasury positions."""
+        acc_str = str(request.account_number).strip().replace("-", "").replace(" ", "")
+        src = request.source_currency.strip().upper()
+        tgt = request.target_currency.strip().upper()
+
+        if src not in SUPPORTED_CURRENCIES:
+            raise UnsupportedCurrencyError(src)
+        if tgt not in SUPPORTED_CURRENCIES:
+            raise UnsupportedCurrencyError(tgt)
+        if src == tgt:
+            raise InvalidFXAmountError("Source and target currencies must differ for FX exchange.")
+        if request.source_amount <= Decimal("0.00"):
+            raise InvalidFXAmountError("Exchange amount must be strictly positive.")
+
+        trade_id = f"FX-{uuid.uuid4().hex[:8].upper()}"
+        now = datetime.now(timezone.utc)
+
+        with self._lock_manager.get_lock(acc_str):
+            with self._session_factory() as session:
+                with session.begin():
+                    account_repo = SQLAccountRepository(session)
+                    tx_repo = SQLTransactionRepository(session)
+                    fx_repo = SQLFXRepository(session)
+
+                    account = account_repo.get_by_number_for_update(acc_str)
+                    if account is None:
+                        raise AccountNotFoundError(acc_str)
+                    if not account.is_active:
+                        raise AccountClosedError(acc_str)
+                    if account.is_frozen:
+                        raise AccountFrozenError(acc_str)
+
+                    rates_dict = {pair: r.spot_rate for pair, r in fx_repo.get_rates().items()}
+
+                    (
+                        spot_rate,
+                        effective_rate,
+                        target_amount,
+                        fee,
+                        spread_revenue_usd,
+                    ) = FXCalculator.compute_conversion(
+                        source_currency=src,
+                        target_currency=tgt,
+                        source_amount=request.source_amount,
+                        spread_bps=20,
+                        rates_map=rates_dict,
+                    )
+
+                    # Determine required account debit amount in customer account currency
+                    if account.balance.currency == src:
+                        debit_amount = request.source_amount
+                    else:
+                        # Convert source currency to account currency (usually USD)
+                        src_to_acc_rate = FXCalculator.resolve_spot_rate(src, account.balance.currency, rates_dict)
+                        debit_amount = (request.source_amount * src_to_acc_rate).quantize(
+                            Decimal("0.01"), rounding=ROUND_HALF_UP
+                        )
+
+                    debit_money = Money(debit_amount, currency=account.balance.currency)
+                    if account.balance < debit_money:
+                        raise InsufficientFundsError(
+                            current_balance=account.balance.formatted(),
+                            requested_amount=debit_money.formatted(),
+                        )
+
+                    # Debit customer account
+                    desc_text = (
+                        f"FX Spot Exchange: Sold {request.source_amount:,.2f} {src} "
+                        f"for {target_amount:,.2f} {tgt} @ {effective_rate} (Ref: {trade_id})"
+                    )
+                    tx_entity = account.debit(
+                        amount=debit_money,
+                        transaction_type=TransactionType.WITHDRAWAL,
+                        description=desc_text,
+                        ref=trade_id,
+                        actor=request.actor,
+                    )
+
+                    # Check and update Treasury Positions
+                    pos_tgt = fx_repo.get_treasury_position(tgt)
+                    if pos_tgt is None or pos_tgt.reserve_balance < target_amount:
+                        avail = f"{pos_tgt.reserve_balance if pos_tgt else Decimal('0.00')} {tgt}"
+                        raise InsufficientTreasuryReserveError(tgt, f"{target_amount} {tgt}", avail)
+
+                    pos_tgt.withdraw(target_amount)
+                    fx_repo.save_treasury_position(pos_tgt)
+
+                    pos_src = fx_repo.get_treasury_position(src)
+                    if pos_src is None:
+                        pos_src = TreasuryPosition(src, Decimal("0.00"))
+                    pos_src.deposit(request.source_amount)
+                    fx_repo.save_treasury_position(pos_src)
+
+                    fx_trade = FXTrade(
+                        trade_id=trade_id,
+                        account_number=account.account_number,
+                        source_currency=src,
+                        source_amount=request.source_amount,
+                        target_currency=tgt,
+                        target_amount=target_amount,
+                        spot_rate=spot_rate,
+                        effective_rate=effective_rate,
+                        spread_bps=20,
+                        spread_revenue_usd=spread_revenue_usd,
+                        fee_amount=fee,
+                        status=FXTradeStatus.EXECUTED,
+                        settlement_reference=f"SWIFT-CLS-{uuid.uuid4().hex[:8].upper()}",
+                        actor=request.actor,
+                        executed_at=now,
+                    )
+
+                    account_repo.save(account)
+                    tx_repo.append(tx_entity)
+                    fx_repo.save_trade(fx_trade)
+
+                    withdrawal_event = WithdrawalCompletedEvent(
+                        account_number=account.account_number.value,
+                        amount=debit_money.amount,
+                        balance_after=account.balance.amount,
+                        currency=account.balance.currency,
+                        transaction_ref=tx_entity.transaction_ref,
+                        timestamp=now,
+                        actor=request.actor,
+                        description=desc_text,
+                    )
+
+                    trade_event = FXTradeExecutedEvent(
+                        trade_id=trade_id,
+                        account_number=account.account_number.value,
+                        source_currency=src,
+                        source_amount=request.source_amount,
+                        target_currency=tgt,
+                        target_amount=target_amount,
+                        effective_rate=effective_rate,
+                        spread_revenue_usd=spread_revenue_usd,
+                        fee_amount=fee,
+                        settlement_reference=fx_trade.settlement_reference,
+                        timestamp=now,
+                        actor=request.actor,
+                    )
+
+                    pos_event = TreasuryPositionUpdatedEvent(
+                        currency=tgt,
+                        delta_amount=-target_amount,
+                        new_balance=pos_tgt.reserve_balance,
+                        timestamp=now,
+                        actor=request.actor,
+                    )
+
+        self._emit(withdrawal_event)
+        self._emit(trade_event)
+        self._emit(pos_event)
+
+        return FXTradeDTO.from_entity(fx_trade)
+
+    def list_fx_trades(
+        self,
+        account_number: Optional[str] = None,
+        currency_pair: Optional[str] = None,
+        status: Optional[str] = None,
+        pair: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> tuple[list[FXTradeDTO], int]:
+        """Query historical FX trade blotter with optional criteria and pagination."""
+        resolved_pair = currency_pair or pair
+        resolved_page_size = limit or page_size
+        resolved_page = (offset // resolved_page_size + 1) if offset is not None else page
+        with self._session_factory() as session:
+            fx_repo = SQLFXRepository(session)
+            trades, total = fx_repo.list_trades(
+                account_number=account_number,
+                currency_pair=resolved_pair,
+                status=status,
+                page=resolved_page,
+                page_size=resolved_page_size,
+            )
+            return [FXTradeDTO.from_entity(t) for t in trades], total
+
+    def get_treasury_overview(
+        self,
+    ) -> tuple[list[TreasuryPositionDTO], Decimal, Decimal, Decimal]:
+        """Aggregate bank sovereign currency vault reserves, USD valuation, and 24h metrics."""
+        with self._session_factory() as session:
+            fx_repo = SQLFXRepository(session)
+            positions = fx_repo.get_treasury_positions()
+            rates_dict = {pair: r.spot_rate for pair, r in fx_repo.get_rates().items()}
+            trades, _ = fx_repo.list_trades(page=1, page_size=500)
+
+        # Compute total USD equivalent value across all reserves
+        pos_dtos: list[TreasuryPositionDTO] = []
+        total_usd_value = Decimal("0.00")
+
+        # First pass: calculate USD equivalents
+        interim: list[tuple[TreasuryPosition, Decimal, Decimal]] = []
+        for p in positions:
+            spot_to_usd = FXCalculator.resolve_spot_rate(p.currency, "USD", rates_dict)
+            usd_val = (p.reserve_balance * spot_to_usd).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            total_usd_value += usd_val
+            interim.append((p, usd_val, spot_to_usd))
+
+        # Second pass: calculate allocations
+        for p, usd_val, spot_to_usd in interim:
+            alloc_pct = Decimal("0.00")
+            if total_usd_value > Decimal("0.00"):
+                alloc_pct = ((usd_val / total_usd_value) * Decimal("100.00")).quantize(
+                    Decimal("0.10"), rounding=ROUND_HALF_UP
+                )
+
+            pos_dtos.append(
+                TreasuryPositionDTO(
+                    currency=p.currency,
+                    reserve_balance=p.reserve_balance,
+                    usd_equivalent=usd_val,
+                    spot_to_usd=spot_to_usd,
+                    target_allocation_pct=p.target_allocation_pct,
+                    current_allocation_pct=alloc_pct,
+                    last_revalued_at=p.last_revalued_at.strftime("%Y-%m-%d %H:%M:%S"),
+                )
+            )
+
+        # 24h volume and spread revenue
+        volume_24h = Decimal("0.00")
+        spread_revenue_24h = Decimal("0.00")
+        for t in trades:
+            if t.status == FXTradeStatus.EXECUTED:
+                src_usd_rate = FXCalculator.resolve_spot_rate(t.source_currency, "USD", rates_dict)
+                vol_usd = t.source_amount * src_usd_rate
+                volume_24h += vol_usd
+                spread_revenue_24h += t.spread_revenue_usd
+
+        return (
+            pos_dtos,
+            total_usd_value,
+            volume_24h.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+            spread_revenue_24h.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+        )
+
+    def get_live_fx_rates(self) -> list[FXRateTableEntryDTO]:
+        """Fetch live benchmark exchange rate table."""
+        with self._session_factory() as session:
+            fx_repo = SQLFXRepository(session)
+            rates = fx_repo.get_rates()
+            return [FXRateTableEntryDTO.from_entity(r) for r in rates.values()]
+
+    def export_fx_blotter_csv(
+        self,
+        trades: Optional[list[FXTradeDTO]] = None,
+        destination: Optional[str] = None,
+        encoding: str = "utf-8",
+        sanitize_formulas: bool = True,
+    ) -> str:
+        """Export Foreign Exchange trade blotter records into an RFC-4180 CSV document."""
+        from novabank.application.services.export_service import ExportService
+
+        if trades is None:
+            trades_list, _ = self.list_fx_trades(page=1, page_size=5000)
+        else:
+            trades_list = trades
+
+        string_buffer = io.StringIO()
+        writer = csv.writer(string_buffer, lineterminator="\r\n", quoting=csv.QUOTE_MINIMAL)
+
+        headers = [
+            "Trade ID",
+            "Timestamp",
+            "Account Number",
+            "Sold Currency",
+            "Sold Amount",
+            "Bought Currency",
+            "Bought Amount",
+            "Spot Rate",
+            "Effective Rate",
+            "Spread (Bps)",
+            "Spread Revenue (USD)",
+            "Fee Amount",
+            "Status",
+            "Settlement Reference",
+            "Actor",
+        ]
+        writer.writerow(headers)
+
+        for t in trades_list:
+            row = [
+                ExportService.sanitize_field(t.trade_id, sanitize_formulas),
+                t.executed_at,
+                t.account_number,
+                t.source_currency,
+                f"{t.source_amount:.2f}",
+                t.target_currency,
+                f"{t.target_amount:.2f}",
+                f"{t.spot_rate:.5f}",
+                f"{t.effective_rate:.5f}",
+                t.spread_bps,
+                f"{t.spread_revenue_usd:.2f}",
+                f"{t.fee_amount:.2f}",
+                t.status,
+                ExportService.sanitize_field(t.settlement_reference, sanitize_formulas),
+                t.actor,
+            ]
+            writer.writerow(row)
+
+        csv_content = string_buffer.getvalue()
+        return ExportService._deliver_output(csv_content, destination, encoding)
+
 
 

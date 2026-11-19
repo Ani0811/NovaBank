@@ -4,6 +4,7 @@ from novabank.ui.viewmodels.account_detail_viewmodel import AccountDetailViewMod
 from novabank.ui.viewmodels.account_list_viewmodel import AccountListViewModel
 from novabank.ui.viewmodels.ai_assistant_viewmodel import AIAssistantViewModel
 from novabank.ui.viewmodels.audit_log_viewmodel import AuditLogViewModel
+from novabank.ui.viewmodels.fx_treasury_viewmodel import FXTreasuryViewModel
 from novabank.ui.viewmodels.loan_desk_viewmodel import LoanDeskViewModel
 from novabank.ui.viewmodels.open_account_viewmodel import OpenAccountViewModel
 from novabank.ui.viewmodels.payment_gateway_viewmodel import PaymentGatewayViewModel
@@ -16,6 +17,7 @@ __all__ = [
     "AccountListViewModel",
     "AIAssistantViewModel",
     "AuditLogViewModel",
+    "FXTreasuryViewModel",
     "LoanDeskViewModel",
     "OpenAccountViewModel",
     "PaymentGatewayViewModel",

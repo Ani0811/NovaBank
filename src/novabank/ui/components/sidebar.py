@@ -42,6 +42,7 @@ class Sidebar(QFrame):
                 ("payment_gateway", "Payment Gateway", "credit_card"),
                 ("loans", "Loan Desk", "landmark"),
                 ("term_deposits", "CD Vault", "vault"),
+                ("fx_treasury", "FX Desk", "currency_exchange"),
                 ("statements", "Statements", "statements"),
             ],
         ),

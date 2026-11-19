@@ -275,6 +275,35 @@ class TermDepositRolledOverEvent:
     actor: str = "system"
 
 
+@dataclass(frozen=True)
+class FXTradeExecutedEvent:
+    """Emitted when an FX spot conversion trade is executed and settled."""
+
+    trade_id: str
+    account_number: str
+    source_currency: str
+    source_amount: Decimal
+    target_currency: str
+    target_amount: Decimal
+    effective_rate: Decimal
+    spread_revenue_usd: Decimal
+    fee_amount: Decimal
+    settlement_reference: str
+    timestamp: datetime
+    actor: str = "teller"
+
+
+@dataclass(frozen=True)
+class TreasuryPositionUpdatedEvent:
+    """Emitted when a sovereign currency vault reserve balance is adjusted."""
+
+    currency: str
+    delta_amount: Decimal
+    new_balance: Decimal
+    timestamp: datetime
+    actor: str = "system"
+
+
 
 
 

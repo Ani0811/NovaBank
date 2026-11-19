@@ -24,6 +24,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from novabank.domain.entities.account import Account
 from novabank.domain.entities.beneficiary import Beneficiary
+from novabank.domain.entities.fx_trade import (
+    ExchangeRate,
+    FXTrade,
+    FXTradeStatus,
+    TreasuryPosition,
+)
 from novabank.domain.entities.loan import (
     AmortizationScheduleEntry,
     LoanContract,
@@ -619,6 +625,158 @@ class TermDepositModel(Base):
             closed_at=entity.closed_at,
             accruals_json=accruals_data,
         )
+
+
+class FXTradeModel(Base):
+    """Relational model for executed Foreign Exchange trades."""
+
+    __tablename__ = "fx_trades"
+
+    trade_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    account_number: Mapped[str] = mapped_column(
+        String(12), ForeignKey("accounts.account_number"), nullable=False
+    )
+    source_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    source_amount: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    target_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    target_amount: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    spot_rate: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
+    effective_rate: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
+    spread_bps: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
+    spread_revenue_usd: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), default=Decimal("0.00"), nullable=False
+    )
+    fee_amount: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), default=Decimal("0.00"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(20), default="EXECUTED", nullable=False)
+    settlement_reference: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor: Mapped[str] = mapped_column(String(64), default="teller", nullable=False)
+    executed_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_fx_account", "account_number"),
+        Index("idx_fx_status", "status"),
+        Index("idx_fx_executed_at", "executed_at"),
+    )
+
+    def to_entity(self) -> FXTrade:
+        """Convert ORM model to pure Domain FXTrade entity."""
+        return FXTrade(
+            trade_id=self.trade_id,
+            account_number=AccountNumber(self.account_number),
+            source_currency=self.source_currency,
+            source_amount=self.source_amount,
+            target_currency=self.target_currency,
+            target_amount=self.target_amount,
+            spot_rate=self.spot_rate,
+            effective_rate=self.effective_rate,
+            spread_bps=self.spread_bps,
+            spread_revenue_usd=self.spread_revenue_usd,
+            fee_amount=self.fee_amount,
+            status=FXTradeStatus(self.status),
+            settlement_reference=self.settlement_reference,
+            actor=self.actor,
+            executed_at=self.executed_at,
+        )
+
+    @classmethod
+    def from_entity(cls, entity: FXTrade) -> FXTradeModel:
+        """Construct ORM model from pure Domain FXTrade entity."""
+        return cls(
+            trade_id=entity.trade_id,
+            account_number=entity.account_number.value,
+            source_currency=entity.source_currency,
+            source_amount=entity.source_amount,
+            target_currency=entity.target_currency,
+            target_amount=entity.target_amount,
+            spot_rate=entity.spot_rate,
+            effective_rate=entity.effective_rate,
+            spread_bps=entity.spread_bps,
+            spread_revenue_usd=entity.spread_revenue_usd,
+            fee_amount=entity.fee_amount,
+            status=entity.status.value,
+            settlement_reference=entity.settlement_reference,
+            actor=entity.actor,
+            executed_at=entity.executed_at,
+        )
+
+
+class FXRateModel(Base):
+    """Relational model for cached/market benchmark FX exchange rates."""
+
+    __tablename__ = "fx_rates"
+
+    pair: Mapped[str] = mapped_column(String(10), primary_key=True)
+    base_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    quote_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    spot_rate: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
+    spread_bps: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+    def to_entity(self) -> ExchangeRate:
+        """Convert ORM model to pure Domain ExchangeRate entity."""
+        return ExchangeRate(
+            pair=self.pair,
+            base_currency=self.base_currency,
+            quote_currency=self.quote_currency,
+            spot_rate=self.spot_rate,
+            spread_bps=self.spread_bps,
+            last_updated=self.last_updated,
+        )
+
+    @classmethod
+    def from_entity(cls, entity: ExchangeRate) -> FXRateModel:
+        """Construct ORM model from pure Domain ExchangeRate entity."""
+        return cls(
+            pair=entity.pair,
+            base_currency=entity.base_currency,
+            quote_currency=entity.quote_currency,
+            spot_rate=entity.spot_rate,
+            spread_bps=entity.spread_bps,
+            last_updated=entity.last_updated,
+        )
+
+
+class TreasuryPositionModel(Base):
+    """Relational model for bank sovereign currency treasury vault reserves."""
+
+    __tablename__ = "treasury_positions"
+
+    currency: Mapped[str] = mapped_column(String(3), primary_key=True)
+    reserve_balance: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), default=Decimal("0.00"), nullable=False
+    )
+    target_allocation_pct: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), default=Decimal("0.00"), nullable=False
+    )
+    last_revalued_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+    def to_entity(self) -> TreasuryPosition:
+        """Convert ORM model to pure Domain TreasuryPosition entity."""
+        return TreasuryPosition(
+            currency=self.currency,
+            reserve_balance=self.reserve_balance,
+            target_allocation_pct=self.target_allocation_pct,
+            last_revalued_at=self.last_revalued_at,
+        )
+
+    @classmethod
+    def from_entity(cls, entity: TreasuryPosition) -> TreasuryPositionModel:
+        """Construct ORM model from pure Domain TreasuryPosition entity."""
+        return cls(
+            currency=entity.currency,
+            reserve_balance=entity.reserve_balance,
+            target_allocation_pct=entity.target_allocation_pct,
+            last_revalued_at=entity.last_revalued_at,
+        )
+
 
 
 

@@ -135,6 +135,18 @@ LUCIDE_SVGS: dict[str, str] = {
         '<path d="m9 9 6 6"/>'
         '<circle cx="12" cy="12" r="1"/>'
     ),
+    "currency_exchange": (
+        '<circle cx="8" cy="8" r="6"/>'
+        '<path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>'
+        '<path d="M7 6h2v4"/>'
+        '<path d="m15 14 3 3-3 3"/>'
+        '<path d="M11 17h7"/>'
+    ),
+    "arrow_left_right": (
+        '<path d="m9 7-5 5 5 5"/>'
+        '<path d="m15 17 5-5-5-5"/>'
+        '<path d="M4 12h16"/>'
+    ),
     "arrow_right": (
         '<path d="M5 12h14"/>'
         '<path d="m12 5 7 7-7 7"/>'
